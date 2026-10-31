@@ -27,3 +27,6 @@ export default async function EditProduct({ params }: PageProps<"/admin/products
     </>
   );
 }
+
+// Signed-in staff only, so never an instant navigation (see the panel layout).
+export const instant = false;

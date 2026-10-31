@@ -98,3 +98,6 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
     </>
   );
 }
+
+// Signed-in staff only, so never an instant navigation (see the panel layout).
+export const instant = false;

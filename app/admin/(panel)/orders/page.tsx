@@ -67,3 +67,6 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     </>
   );
 }
+
+// Signed-in staff only, so never an instant navigation (see the panel layout).
+export const instant = false;

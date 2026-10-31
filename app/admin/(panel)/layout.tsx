@@ -3,6 +3,11 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { ChangePasswordForm } from "@/components/admin/ChangePasswordForm";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
+// Staff pages depend on who is signed in and redirect when nobody is, so they can never be an instant,
+// prerendered navigation. Opt out of the dev-only "instant" validation, which otherwise re-renders the
+// redirecting route on every reload.
+export const instant = false;
+
 // Staff pages read the session cookie, so they render on request, behind a Suspense boundary.
 // Each page and action re-checks access itself: a layout is not re-run on client navigation.
 export default function PanelLayout({ children }: { children: ReactNode }) {

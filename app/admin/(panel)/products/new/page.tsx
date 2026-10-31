@@ -16,3 +16,6 @@ export default async function NewProduct() {
     </>
   );
 }
+
+// Signed-in staff only, so never an instant navigation (see the panel layout).
+export const instant = false;
