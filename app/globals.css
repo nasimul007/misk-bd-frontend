@@ -34,3 +34,10 @@ body {
 .logo-day { display: none; }
 [data-lux="day"] .logo-night { display: none; }
 [data-lux="day"] .logo-day { display: inline-block; }
+
+/* Native selects: keep the dropdown list readable in both modes. */
+select.lux-input { color-scheme: dark; }
+[data-lux="day"] select.lux-input { color-scheme: light; }
+select.lux-input option { background: var(--lux-bg-3); color: var(--lux-ink); }
+select.lux-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.lux-input[aria-invalid="true"] { border-color: var(--lux-warning); }
