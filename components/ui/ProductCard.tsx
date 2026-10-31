@@ -1,12 +1,15 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { PricedProduct } from "@/lib/types";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { Badge } from "./Badge";
 
 /** Storefront product card: frosted surface, square image, serif title, gold price. */
 export function ProductCard({ product }: { product: PricedProduct }) {
+  const money = useMoney();
   const { id, title, image, bestseller, stock, variants, card } = product;
   const { price, maxPrice, compareAt, discountLabel } = card;
   return (

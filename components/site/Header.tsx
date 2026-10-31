@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, Phone, MessageCircle, Plane, Search, User, X } from "lucide-react";
 import { ModeToggle } from "@/components/ui/ModeToggle";
+import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
 import { CartButton } from "@/components/cart/CartButton";
 import { Logo } from "./Logo";
 
@@ -51,7 +52,7 @@ export function Header() {
               <span className="font-display" style={{ whiteSpace: "nowrap", letterSpacing: "0.3em", color: "var(--lux-ink)", fontSize: "1.2rem" }}>MISK&nbsp;BD</span>
             </Link>
             <div className="flex items-center gap-1" style={{ justifySelf: "end" }}>
-              <span className="hidden lg:inline-flex"><ModeToggle /></span>
+              <span className="hidden lg:inline-flex items-center gap-2"><CurrencyToggle /><ModeToggle /></span>
               <Link href="/shop" className={`${btn} inline-flex`} style={iconBtn} aria-label="Search"><Search size={19} /></Link>
               <Link href="/login" style={iconBtn} aria-label="Account" className={`${btn} hidden lg:inline-flex`}><User size={19} /></Link>
               <CartButton />
@@ -66,7 +67,7 @@ export function Header() {
               ))}
               <div className="flex items-center justify-between" style={{ paddingTop: 14 }}>
                 <Link href="/login" className={`${btn} inline-flex`} style={iconBtn} aria-label="Account" onClick={() => setOpen(false)}><User size={20} /></Link>
-                <ModeToggle />
+                <span className="inline-flex items-center gap-2"><CurrencyToggle /><ModeToggle /></span>
               </div>
             </div>
           </div>

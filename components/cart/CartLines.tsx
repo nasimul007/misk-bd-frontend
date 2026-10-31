@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 
 /** The list of cart items with quantity steppers. Shared by the drawer and the /cart page. */
 export function CartLines({ onNavigate }: { onNavigate?: () => void }) {
+  const money = useMoney();
   const items = useCart((s) => s.items);
   const changeQty = useCart((s) => s.changeQty);
   const remove = useCart((s) => s.remove);

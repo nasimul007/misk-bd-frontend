@@ -6,7 +6,8 @@ import { useMemo, useSyncExternalStore } from "react";
 import { Check } from "lucide-react";
 import { payments } from "@/lib/config";
 import { estimateFor } from "@/lib/checkout";
-import { money } from "@/lib/format";
+import { useCurrency, useMoney } from "@/lib/currency";
+import { money as bdt } from "@/lib/format";
 import { orderStore, type Order } from "@/lib/orders";
 
 function useOrder(id: string): Order | null | undefined {
@@ -24,6 +25,8 @@ function useOrder(id: string): Order | null | undefined {
 
 /** Confirmation and receipt. Until there is a backend, only the browser that placed the order can show it. */
 export function OrderReceipt({ id }: { id: string }) {
+  const money = useMoney();
+  const currency = useCurrency();
   const order = useOrder(id);
 
   if (order === undefined) return <div style={{ minHeight: "50vh" }} aria-busy="true" />;
@@ -79,6 +82,7 @@ export function OrderReceipt({ id }: { id: string }) {
           <span style={{ fontWeight: 500 }}>{order.pay === "cod" ? "Total due on delivery" : "Total"}</span>
           <span className="font-display" style={{ fontSize: 24, color: "var(--lux-gold)" }}>{money(t.total)}</span>
         </div>
+        {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
       </div>
 
       <div className="flex flex-wrap justify-center gap-3.5" style={{ marginTop: 28 }}>

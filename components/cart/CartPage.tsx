@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { cartCount, cartSubtotal, useCart } from "@/lib/cart";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 import { CartLines } from "./CartLines";
 
 /** Full-page cart: the lines on one side, an order summary on the other. */
 export function CartPage() {
+  const money = useMoney();
   const items = useCart((s) => s.items);
   const hydrated = useCart((s) => s.hydrated);
   const clear = useCart((s) => s.clear);

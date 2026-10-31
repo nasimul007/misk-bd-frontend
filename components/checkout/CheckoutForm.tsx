@@ -9,7 +9,8 @@ import { useCart } from "@/lib/cart";
 import { computeTotals, dialFor, emptyForm, estimateFor, bdLocal, validate, type CheckoutForm as Form } from "@/lib/checkout";
 import { paymentsFor, type PaymentId } from "@/lib/config";
 import { countries, dialCodes, geo } from "@/lib/data/geo";
-import { money } from "@/lib/format";
+import { useCurrency, useMoney } from "@/lib/currency";
+import { money as bdt } from "@/lib/format";
 import { newOrderId, orderStore, type Order } from "@/lib/orders";
 import { Field, ariaFor } from "./Field";
 
@@ -17,6 +18,8 @@ const card = { borderRadius: 18, padding: 24 } as const;
 const h = { fontSize: 18, fontWeight: 500, margin: "0 0 18px" } as const;
 
 export function CheckoutForm() {
+  const money = useMoney();
+  const currency = useCurrency();
   const router = useRouter();
   const items = useCart((s) => s.items);
   const hydrated = useCart((s) => s.hydrated);
@@ -211,6 +214,7 @@ export function CheckoutForm() {
           <span style={{ fontWeight: 500 }}>Total</span>
           <span className="font-display" style={{ fontSize: 24, color: "var(--lux-gold)" }}>{money(t.total)}</span>
         </div>
+        {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
         {t.savings > 0 && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--lux-success)", textAlign: "right" }}>You save {money(t.savings)} on this order</p>}
         <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : "Place order"}</button>
         {touched && !ok && <p role="alert" style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-warning)", textAlign: "center" }}>Please fix the highlighted fields.</p>}

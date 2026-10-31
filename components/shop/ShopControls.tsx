@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpDown, Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
 import { CATEGORIES, FAMILIES, SIZES, SORTS, toSearch, type ShopQuery } from "@/lib/catalogue";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 import type { Section } from "@/lib/types";
 
 const label = { fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--lux-ink-muted)", marginBottom: 10 } as const;
@@ -20,6 +20,7 @@ type Props = {
 
 /** Search, sort, chips and the filter rail. All state lives in the URL, so every view is shareable. */
 export function ShopControls({ query, sections, bounds, hasSale, children }: Props) {
+  const money = useMoney();
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();

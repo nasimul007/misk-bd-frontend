@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { cartSubtotal, useCart } from "@/lib/cart";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 import { CartLines } from "./CartLines";
 
 /** Slide-in cart. Closes on Esc, backdrop click, or when a link inside is followed. */
 export function CartDrawer() {
+  const money = useMoney();
   const open = useCart((s) => s.drawerOpen);
   const close = useCart((s) => s.closeDrawer);
   const items = useCart((s) => s.items);

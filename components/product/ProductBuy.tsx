@@ -5,12 +5,13 @@ import { Minus, Plus, ShoppingBag, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { StockPill } from "@/components/ui/StockPill";
-import { money } from "@/lib/format";
+import { useMoney } from "@/lib/currency";
 import { useCart } from "@/lib/cart";
 import type { PricedProduct } from "@/lib/types";
 
 /** Price, size picker, quantity stepper and add-to-cart. */
 export function ProductBuy({ product }: { product: PricedProduct }) {
+  const money = useMoney();
   const { title, stock, card, sizes } = product;
   const add = useCart((s) => s.add);
   const [size, setSize] = useState<string | null>(null);
