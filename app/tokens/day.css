@@ -1,0 +1,141 @@
+/* ===========================================================================
+   MISK BD — DAY MODE
+   The light counterpart to the oxblood night house. Two-colour by default —
+   charcoal slate ink on warm ivory/bone — with aged brass and deep ember kept
+   as RARE accents (borders, price tags, ribbons), never as backgrounds.
+
+   Selected by the same one attribute the night moods use:
+       <body data-lux="day">   ·   <body data-lux="oxblood">  (night, default)
+
+   This file (a) remaps the token palette and (b) re-skins the frosted-glass
+   utilities as paper/engraved-line surfaces so the same components render
+   correctly on ivory. Imported last so it wins the cascade when day is active.
+=========================================================================== */
+
+[data-lux="day"] {
+  /* Grounds — warm ivory / bone, with paper-raise + recess steps */
+  --lux-bg: #F5EEE3;          /* warm ivory / bone */
+  --lux-bg-2: #FBF7EF;        /* raised paper */
+  --lux-bg-3: #EBE1D2;        /* recessed / footer */
+
+  /* Ink — charcoal slate. Muted step darkened so day-mode body copy reads a
+     touch bolder and clears AA comfortably on ivory. */
+  --lux-ink: #333F47;         /* charcoal slate — primary ink (deepened) */
+  --lux-ink-muted: #4C4840;   /* darker warm taupe, reads bolder, ~7:1 */
+
+  /* Accent metal — aged brass / oud amber. Deepened for legible accent TEXT
+     (prices, eyebrows) while reading as brass. Reserve for borders/tags. */
+  --lux-gold: #8A5A20;        /* deep aged brass — accent text/price */
+  --lux-gold-strong: #6B2C2C; /* deep ember / oxblood — strongest accent */
+  --lux-gold-soft: rgba(169, 121, 58, 0.16);  /* brass wash for rims/fills */
+  --lux-line: rgba(169, 121, 58, 0.42);        /* engraved brass hairline */
+  --lux-line-soft: rgba(58, 71, 80, 0.14);     /* charcoal hairline, low-op */
+  --lux-scrim: rgba(46, 38, 30, 0.42);         /* image scrim (still darkens) */
+
+  /* Neutral support */
+  --lux-taupe: #8A8378;
+
+  /* Hero: an ivory wash laid over photography so charcoal text stays legible */
+  --hero-wash: rgba(245, 238, 227, 0.68); /* @kind color */
+  /* Hero veil — bright ivory glow centred behind the text; photo stays visible
+     at the edges (fixes the day-mode wash-out). */
+  --hero-veil: radial-gradient(96% 84% at 50% 46%, rgba(246,239,228,0.7) 0%, rgba(246,239,228,0.34) 46%, rgba(246,239,228,0) 82%); /* @kind color */
+
+  /* Status tones — darkened so they clear AA on ivory */
+  --lux-success: #2F7D4F;
+  --lux-warning: #9A6612;
+  --lux-danger: #A23A38;
+
+  /* Softer, warmer shadows on paper (less depth than night glass) */
+  --shadow-float: 0 18px 44px -26px rgba(58, 47, 34, 0.34);
+  --shadow-surface: 0 22px 50px -30px rgba(58, 47, 34, 0.38);
+  --shadow-card: 0 10px 30px -14px rgba(58, 47, 34, 0.28);
+  --shadow-gold: 0 12px 34px -14px rgba(169, 121, 58, 0.4);
+  --highlight-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.7); /* @kind shadow */
+}
+
+/* Night grounds carry no hero wash. */
+/* Night grounds carry no hero wash (declared with the base tokens). */
+
+/* ---- Surfaces: frost → aged paper ------------------------------------- */
+[data-lux="day"] .lux-shell {
+  background-color: var(--lux-bg);
+  background-image: radial-gradient(125% 90% at 50% -10%, var(--lux-bg-2) 0%, var(--lux-bg) 58%, var(--lux-bg-3) 100%);
+  color: var(--lux-ink);
+}
+[data-lux="day"] .lux-glass {
+  background: linear-gradient(160deg, #FFFDF9, #F3EADB 60%, #EFE5D5);
+  border: 1px solid var(--lux-line-soft);
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  box-shadow: var(--highlight-top), var(--shadow-card);
+}
+[data-lux="day"] .lux-surface {
+  background: linear-gradient(160deg, #FCF8F1, #F4ECDE);
+  border: 1px solid var(--lux-line-soft);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: var(--highlight-top), var(--shadow-surface);
+}
+[data-lux="day"] .lux-glass--gold {
+  border-color: var(--lux-line);
+  box-shadow: var(--highlight-top), inset 0 0 0 1px var(--lux-gold-soft), var(--shadow-surface);
+}
+[data-lux="day"] .glass-card {
+  background: linear-gradient(180deg, #FCF8F1, #F5EDDF);
+  border: 1px solid var(--lux-line-soft);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: var(--highlight-top), var(--shadow-card);
+}
+[data-lux="day"] .glass-panel {
+  background: #FBF7EF;
+  border: 1px solid var(--lux-line-soft);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+[data-lux="day"] .hairline { border-color: var(--lux-line-soft); }
+
+/* ---- Navbar on ivory --------------------------------------------------- */
+[data-lux="day"] .lux-navbar {
+  background: linear-gradient(180deg, rgba(245,238,227,0.7), rgba(245,238,227,0.2));
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+}
+[data-lux="day"] .lux-navbar.is-scrolled {
+  background: linear-gradient(180deg, rgba(251,247,239,0.94), rgba(245,238,227,0.86));
+  border-bottom-color: var(--lux-line);
+  box-shadow: 0 14px 34px -28px rgba(58,47,34,0.5);
+}
+
+/* ---- Buttons: charcoal fill on ivory (primary), ink outline (ghost) ---- */
+[data-lux="day"] .lux-btn-fill {
+  background: var(--lux-ink);      /* charcoal fill */
+  color: var(--lux-bg);            /* ivory text */
+}
+[data-lux="day"] .lux-btn-fill:hover:not(:disabled) { filter: brightness(1.12); box-shadow: var(--shadow-card); }
+[data-lux="day"] .lux-btn {         /* outline → charcoal hairline that fills ink */
+  border-color: var(--lux-ink);
+  color: var(--lux-ink);
+}
+[data-lux="day"] .lux-btn:hover { background: var(--lux-ink); color: var(--lux-bg); box-shadow: var(--shadow-card); }
+[data-lux="day"] .lux-btn--ghost { border-color: var(--lux-line); color: var(--lux-ink); }
+
+/* Inputs on paper */
+[data-lux="day"] .lux-input {
+  background: #FFFDF9;
+  border-color: var(--lux-line-soft);
+  color: var(--lux-ink);
+}
+[data-lux="day"] .lux-input:focus { border-color: var(--lux-gold); box-shadow: 0 0 0 3px var(--lux-gold-soft); }
+
+/* Hero headline gets a thin text outline in day mode for crisper edges on light backgrounds */
+[data-lux="day"] .hero-title { -webkit-text-stroke: 0.4px var(--lux-ink); }
+
+/* Focus ring reads on ivory */
+[data-lux="day"] .lux-focus:focus-visible { box-shadow: 0 0 0 2px var(--lux-bg), 0 0 0 4px var(--lux-ink); }
+
+/* ---- Day-mode weight ----------------------------------------------------
+   The ivory ground needs a touch more ink weight than the dark house. Bump the
+   inherited body weight (elements with an explicit weight keep it). */
+[data-lux="day"] .lux-shell { font-weight: 500; }
+[data-lux="day"] p, [data-lux="day"] .lux-navlink, [data-lux="day"] label, [data-lux="day"] li, [data-lux="day"] a, [data-lux="day"] span { font-weight: 500; }
+[data-lux="day"] .lux-eyebrow { font-weight: 650; }
+[data-lux="day"] .font-display { font-weight: 560; }

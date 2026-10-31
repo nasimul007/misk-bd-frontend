@@ -1,0 +1,69 @@
+/* ===========================================================================
+   MISK BD — Colour system
+   Maison / dark-luxury attar house. Three swappable moods selected by ONE
+   attribute on the shell:  <body data-lux="oxblood">  (default).
+     · oxblood  — deep bordeaux drench + champagne gold  (DEFAULT, brand)
+     · obsidian — warm near-black + champagne gold
+     · platinum — pure black + cool platinum, no warm metal
+   Every lux surface, rule, button and accent reads from these tokens, so the
+   whole system re-themes from the one attribute. Colours are authored in oklch
+   exactly as the storefront ships them.
+=========================================================================== */
+
+/* Brand default. :root carries oxblood so cards/components that don't set a
+   data-lux scope still render on-brand. */
+:root,
+[data-lux="oxblood"] {
+  /* Night house — deep oud / aged-wood. Darker and warmer (amber-brown hue)
+     than a red bordeaux: smoke, ember and oud wood. */
+  --lux-bg: oklch(0.145 0.028 52);       /* dark oud-wood body */
+  --lux-bg-2: oklch(0.195 0.034 50);     /* raised surface */
+  --lux-bg-3: oklch(0.105 0.022 48);     /* recessed / footer */
+  --lux-ink: oklch(0.95 0.015 85);       /* warm ivory text */
+  --lux-ink-muted: oklch(0.78 0.02 78);  /* muted ivory (AA body) */
+  --lux-gold: oklch(0.83 0.09 84);       /* champagne gold */
+  --lux-gold-strong: oklch(0.88 0.11 86);
+  --lux-gold-soft: oklch(0.83 0.09 84 / 0.16);
+  --lux-line: oklch(0.83 0.09 84 / 0.24);
+  --lux-line-soft: oklch(0.95 0.015 85 / 0.1);
+  --lux-scrim: oklch(0.09 0.02 50 / 0.74);
+  --hero-wash: transparent; /* @kind color */
+  /* Hero veil — darkens the photo so ivory hero text stays legible. */
+  --hero-veil: radial-gradient(100% 92% at 50% 44%, oklch(0.13 0.03 50 / 0.32) 0%, oklch(0.09 0.02 50 / 0.74) 78%); /* @kind color */
+}
+
+[data-lux="obsidian"] {
+  --lux-bg: oklch(0.16 0.008 60);
+  --lux-bg-2: oklch(0.21 0.01 60);
+  --lux-bg-3: oklch(0.13 0.006 60);
+  --lux-ink: oklch(0.96 0.012 85);
+  --lux-ink-muted: oklch(0.78 0.015 80);
+  --lux-gold: oklch(0.85 0.08 88);
+  --lux-gold-strong: oklch(0.9 0.1 88);
+  --lux-gold-soft: oklch(0.85 0.08 88 / 0.16);
+  --lux-line: oklch(0.85 0.08 88 / 0.22);
+  --lux-line-soft: oklch(0.96 0.012 85 / 0.1);
+  --lux-scrim: oklch(0.1 0.006 60 / 0.72);
+}
+
+[data-lux="platinum"] {
+  --lux-bg: oklch(0.14 0 0);
+  --lux-bg-2: oklch(0.2 0 0);
+  --lux-bg-3: oklch(0.11 0 0);
+  --lux-ink: oklch(0.97 0 0);
+  --lux-ink-muted: oklch(0.78 0 0);
+  --lux-gold: oklch(0.84 0 0);           /* platinum, no hue */
+  --lux-gold-strong: oklch(0.92 0 0);
+  --lux-gold-soft: oklch(0.84 0 0 / 0.14);
+  --lux-line: oklch(0.84 0 0 / 0.2);
+  --lux-line-soft: oklch(0.97 0 0 / 0.1);
+  --lux-scrim: oklch(0.08 0 0 / 0.72);
+}
+
+/* Semantic status tones used on the product / checkout surfaces. These sit on
+   dark glass, so they are the light 300-ish steps the storefront ships. */
+:root {
+  --lux-success: oklch(0.78 0.16 155);   /* emerald-400 — in stock, authentic */
+  --lux-warning: oklch(0.82 0.15 78);    /* amber-300 — low stock */
+  --lux-danger: oklch(0.72 0.16 18);     /* rose-300 — sold out */
+}

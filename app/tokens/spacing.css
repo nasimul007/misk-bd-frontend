@@ -1,0 +1,50 @@
+/* ===========================================================================
+   MISK BD — Spacing, radius, shadow & motion tokens
+   The storefront container ("alignment") maxes at 1440px with 20px gutters.
+   Radii favour soft-but-architectural: 12px controls, 18px cards, 20-26px
+   panels, 999px pills. Motion is slow and expensive-feeling.
+=========================================================================== */
+:root {
+  /* Layout */
+  --container-max: 1440px;
+  --container-pad: 1.25rem;   /* 20px gutter */
+
+  /* Spacing scale (rem) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-section: 5rem;      /* py-20 section rhythm */
+  --space-section-lg: 9rem;   /* py-36 hero-adjacent bands */
+
+  /* Radii */
+  --radius-control: 12px;     /* inputs */
+  --radius-card: 18px;        /* product cards, images */
+  --radius-panel: 20px;       /* surfaces / testimonials */
+  --radius-panel-lg: 26px;    /* CTA plates */
+  --radius-pill: 999px;       /* buttons, chips, badges */
+
+  /* Shadows — deep, soft, warm-black floats. Glass surfaces add an inset
+     top highlight (see lux.css). */
+  --shadow-float: 0 22px 55px -26px rgba(0, 0, 0, 0.72);
+  --shadow-surface: 0 26px 60px -30px rgba(0, 0, 0, 0.78);
+  --shadow-card: 0 10px 40px -12px rgba(0, 0, 0, 0.55);
+  --shadow-gold: 0 12px 40px -12px var(--lux-gold-soft);
+  --highlight-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.28); /* @kind shadow */
+
+  /* Blur — the frosted-glass language */
+  --blur-glass: 26px; /* @kind spacing */
+  --blur-surface: 22px; /* @kind spacing */
+  --blur-nav: 12px; /* @kind spacing */
+
+  /* Motion — slow, ceremonial easing */
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --dur-fast: 0.3s;   /* @kind other */
+  --dur-mid: 0.5s;    /* @kind other */
+  --dur-slow: 0.6s;   /* @kind other */
+  --dur-cinematic: 0.9s; /* @kind other */
+}

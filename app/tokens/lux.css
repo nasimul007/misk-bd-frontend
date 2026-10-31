@@ -1,0 +1,204 @@
+/* ===========================================================================
+   MISK BD — "lux" utility layer
+   The storefront's real brand class language (maison / liquid-glass). Lifted
+   verbatim from the shipping globals.css so consumers get identical surfaces,
+   buttons, rules, nav and eyebrow devices. All values read from the token
+   files. Depends on: colors.css, typography.css, spacing.css.
+=========================================================================== */
+
+/* ---- Shell background ---- */
+.lux-shell {
+  background-color: var(--lux-bg);
+  background-image: radial-gradient(
+    120% 80% at 50% -10%,
+    var(--lux-bg-2) 0%,
+    var(--lux-bg) 55%,
+    var(--lux-bg-3) 100%
+  );
+  color: var(--lux-ink);
+}
+
+.font-display { font-family: var(--font-display); }
+
+/* ---- Liquid glass (iOS-inspired frosted surfaces) ----
+   .lux-glass   → lighter frost (nav, plates, chips, controls)
+   .lux-surface → substantial frost (cards, panels, CTA) */
+.lux-glass {
+  background: linear-gradient(155deg, rgba(255,255,255,0.14), rgba(255,255,255,0.045) 45%, rgba(255,255,255,0.06));
+  border: 1px solid rgba(255,255,255,0.16);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.85);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.85);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.32), inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 -18px 40px -30px rgba(0,0,0,0.5), var(--shadow-float);
+}
+.lux-surface {
+  background: linear-gradient(155deg, rgba(255,255,255,0.11), color-mix(in oklch, var(--lux-bg) 34%, transparent) 55%, color-mix(in oklch, var(--lux-bg-3) 42%, transparent));
+  border: 1px solid rgba(255,255,255,0.13);
+  backdrop-filter: blur(var(--blur-surface)) saturate(1.55);
+  -webkit-backdrop-filter: blur(var(--blur-surface)) saturate(1.55);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.26), inset 0 0 0 1px rgba(255,255,255,0.03), var(--shadow-surface);
+}
+/* Gold-kissed rim for a glass panel that wants a little more ceremony. */
+.lux-glass--gold {
+  border-color: var(--lux-line);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.3), inset 0 0 0 1px var(--lux-gold-soft), var(--shadow-float);
+}
+.lux-hairline { border: 1px solid var(--lux-line); }
+
+/* Gold gradient hairline divider. */
+.lux-rule {
+  height: 1px; width: 100%;
+  background: linear-gradient(90deg, transparent, var(--lux-gold-soft), var(--lux-gold), var(--lux-gold-soft), transparent);
+}
+
+.lux-gold { color: var(--lux-gold); }
+.lux-ink { color: var(--lux-ink); }
+.lux-ink-muted { color: var(--lux-ink-muted); }
+
+/* Deliberate brand device — tracked small-caps gold kicker. */
+.lux-eyebrow {
+  font-family: var(--font-poppins);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-medium);
+  color: var(--lux-gold);
+}
+
+/* ---- Buttons ---- */
+/* Gold-outline pill, fills on hover. */
+.lux-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--lux-gold);
+  color: var(--lux-gold);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  background: transparent;
+  transition: color var(--dur-mid) var(--ease-lux), background-color var(--dur-mid) var(--ease-lux), box-shadow var(--dur-mid) var(--ease-lux);
+  cursor: pointer;
+}
+.lux-btn:hover { color: var(--lux-bg); background-color: var(--lux-gold); box-shadow: var(--shadow-gold); }
+.lux-btn--ghost { border-color: var(--lux-line); color: var(--lux-ink); }
+.lux-btn--ghost:hover { color: var(--lux-bg); background-color: var(--lux-ink); }
+
+/* Filled gold primary — the storefront's main CTA. */
+.lux-btn-fill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.9rem 2rem;
+  border-radius: var(--radius-pill);
+  background: var(--lux-gold);
+  color: var(--lux-bg);
+  border: none;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.03em;
+  transition: filter var(--dur-fast) ease, transform 0.2s ease, opacity var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  cursor: pointer;
+}
+.lux-btn-fill:hover:not(:disabled) { filter: brightness(1.07); box-shadow: var(--shadow-gold); }
+.lux-btn-fill:active:not(:disabled) { transform: scale(0.99); }
+.lux-btn-fill:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.lux-focus:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--lux-bg), 0 0 0 4px var(--lux-gold); }
+
+/* ---- Form fields ---- */
+.lux-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  background: color-mix(in oklch, var(--lux-bg-3) 55%, transparent);
+  border: 1px solid var(--lux-line);
+  border-radius: var(--radius-control);
+  color: var(--lux-ink);
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.lux-input::placeholder { color: var(--lux-ink-muted); }
+.lux-input:focus { outline: none; border-color: var(--lux-gold); box-shadow: 0 0 0 3px var(--lux-gold-soft); }
+.lux-label { font-size: var(--text-sm); color: var(--lux-ink-muted); }
+.lux-link { color: var(--lux-gold); text-decoration: underline; text-underline-offset: 3px; transition: opacity var(--dur-fast) ease; }
+.lux-link:hover { opacity: 0.8; }
+
+/* ---- Navbar — architectural maison top bar ---- */
+.lux-navbar {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--lux-bg) 26%, transparent), color-mix(in oklch, var(--lux-bg) 6%, transparent));
+  border-bottom: 1px solid transparent;
+  backdrop-filter: blur(var(--blur-nav)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--blur-nav)) saturate(1.4);
+  transition: background var(--dur-slow) var(--ease-lux), backdrop-filter var(--dur-slow) var(--ease-lux), border-color var(--dur-slow) ease, box-shadow var(--dur-slow) ease;
+}
+.lux-navbar.is-scrolled {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--lux-bg) 74%, transparent), color-mix(in oklch, var(--lux-bg) 56%, transparent));
+  border-bottom-color: var(--lux-line);
+  backdrop-filter: blur(28px) saturate(1.85);
+  -webkit-backdrop-filter: blur(28px) saturate(1.85);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.14), 0 20px 44px -32px rgba(0,0,0,0.85);
+}
+.lux-navlink {
+  position: relative;
+  font-family: var(--font-poppins);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-nav);
+  font-size: 0.72rem;
+  color: var(--lux-ink);
+  transition: color 0.4s ease;
+  text-decoration: none;
+}
+.lux-navlink::after {
+  content: "";
+  position: absolute; left: 0; bottom: -6px;
+  height: 1px; width: 100%;
+  background: var(--lux-gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-mid) var(--ease-lux);
+}
+.lux-navlink:hover { color: var(--lux-gold); }
+.lux-navlink:hover::after { transform: scaleX(1); }
+
+/* ---- Refined storefront glass (shop / product / cart) ---- */
+.glass-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04));
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: 0 1px 0 0 rgba(255,255,255,0.08) inset, var(--shadow-card);
+}
+.glass-panel {
+  background: rgba(14,14,16,0.55);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+}
+.hairline { border: 1px solid rgba(255,255,255,0.1); }
+
+/* ---- Container ---- */
+.alignment { margin: 0 auto; max-width: var(--container-max); padding-inline: var(--container-pad); }
+
+/* ---- Motion ---- */
+@keyframes card-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.card-rise { animation: card-rise var(--dur-mid) var(--ease-lux) both; }
+
+/* Waterdrop ripple accent (nav / buttons). */
+.lux-ripple-layer { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.lux-drop {
+  position: absolute; border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, var(--lux-gold-soft) 42%, transparent 70%);
+  mix-blend-mode: screen; transform: scale(0);
+  animation: lux-drop 0.85s var(--ease-lux) forwards;
+}
+@keyframes lux-drop {
+  0% { transform: scale(0); opacity: 0.55; }
+  60% { opacity: 0.3; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-rise { animation: none; }
+  .lux-drop { display: none; }
+}

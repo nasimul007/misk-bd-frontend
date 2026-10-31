@@ -1,0 +1,46 @@
+/* ===========================================================================
+   MISK BD — Typography tokens
+   Display serif: Bodoni Moda  (headlines, product titles, quotes — often italic)
+   Sans:         Poppins       (UI, nav, eyebrows, body labels)
+   The storefront exposes both via CSS vars --font-display / --font-poppins.
+=========================================================================== */
+:root {
+  /* Families (fallback stacks match the storefront) */
+  --font-display: "Bodoni Moda", Georgia, "Times New Roman", serif;
+  --font-poppins: "Poppins", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-poppins);
+  --font-serif: var(--font-display);
+
+  /* Fluid display scale — clamp() pairs lifted from the storefront hero,
+     brand statement, and section heads. */
+  --text-hero: clamp(2.6rem, 7vw, 5.75rem);      /* homepage hero */
+  --text-display: clamp(1.9rem, 4.5vw, 3.4rem);  /* big serif moments */
+  --text-h2: clamp(1.8rem, 3.6vw, 2.9rem);       /* section heads */
+  --text-h3: 1.5rem;
+  --text-lead: clamp(0.95rem, 1.6vw, 1.15rem);   /* hero / lead paragraph */
+  --text-body: 1rem;
+  --text-sm: 0.875rem;
+  --text-xs: 0.75rem;
+  --text-eyebrow: 0.7rem;                          /* tracked gold kicker */
+
+  /* Weights */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Line heights */
+  --leading-tight: 1.02;   /* hero */
+  --leading-snug: 1.12;    /* display headings */
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;  /* body copy */
+
+  /* Letter-spacing — the maison look leans on wide tracking for caps + logo */
+  --tracking-tight: -0.02em;   /* hero serif */
+  --tracking-normal: 0;
+  --tracking-eyebrow: 0.32em;  /* eyebrow kicker */
+  --tracking-nav: 0.22em;      /* nav caps */
+  --tracking-logo: 0.34em;     /* MISK BD wordmark */
+  --tracking-caps: 0.16em;     /* footer headings */
+}

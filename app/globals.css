@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
+/* MISK BD design tokens (ported from the design system) */
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/lux.css";
+@import "./tokens/day.css";
+
+/* Fonts come from next/font (see layout.tsx); point the tokens at them. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-display: var(--font-bodoni), Georgia, "Times New Roman", serif;
+  --font-poppins: var(--font-poppins-nf), system-ui, -apple-system, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-lux-bg: var(--lux-bg);
+  --color-lux-ink: var(--lux-ink);
+  --color-lux-muted: var(--lux-ink-muted);
+  --color-lux-gold: var(--lux-gold);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Brand mark swaps by mode, no JS needed. */
+.logo-day { display: none; }
+[data-lux="day"] .logo-night { display: none; }
+[data-lux="day"] .logo-day { display: inline-block; }
