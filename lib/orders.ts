@@ -18,12 +18,19 @@ export type Order = {
 };
 
 const KEY = "misk_last_order_v1";
+const HISTORY_KEY = "misk_orders_v1";
 
 /** Until there is a backend, the last order lives in this browser only. */
 export const orderStore = {
   key: KEY,
   save(order: Order) {
-    try { localStorage.setItem(KEY, JSON.stringify(order)); window.dispatchEvent(new Event("misk-order")); } catch {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(order));
+      const past: Order[] = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+      const history = [order, ...(Array.isArray(past) ? past : []).filter((o) => o?.id !== order.id)].slice(0, 30);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      window.dispatchEvent(new Event("misk-order"));
+    } catch {}
   },
   subscribe(cb: () => void) {
     window.addEventListener("misk-order", cb);
@@ -32,6 +39,10 @@ export const orderStore = {
   },
   read(): string | null {
     try { return localStorage.getItem(KEY); } catch { return null; }
+  },
+  /** Every order placed from this browser, newest first (raw JSON). */
+  readHistory(): string | null {
+    try { return localStorage.getItem(HISTORY_KEY); } catch { return null; }
   },
 };
 

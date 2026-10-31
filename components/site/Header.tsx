@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSession } from "@/lib/auth";
 import { Menu, Phone, MessageCircle, Plane, Search, User, X } from "lucide-react";
 import { ModeToggle } from "@/components/ui/ModeToggle";
 import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
@@ -21,6 +22,8 @@ const iconBtn = { width: 42, height: 42, borderRadius: "50%", background: "trans
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const session = useSession();
+  const account = session ? "/account" : "/login";
 
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 24);
@@ -54,7 +57,7 @@ export function Header() {
             <div className="flex items-center gap-1" style={{ justifySelf: "end" }}>
               <span className="hidden lg:inline-flex items-center gap-2"><CurrencyToggle /><ModeToggle /></span>
               <Link href="/shop" className={`${btn} inline-flex`} style={iconBtn} aria-label="Search"><Search size={19} /></Link>
-              <Link href="/login" style={iconBtn} aria-label="Account" className={`${btn} hidden lg:inline-flex`}><User size={19} /></Link>
+              <Link href={account} style={iconBtn} aria-label={session ? "My account" : "Sign in"} className={`${btn} hidden lg:inline-flex`}><User size={19} /></Link>
               <CartButton />
             </div>
           </div>
@@ -66,7 +69,7 @@ export function Header() {
                 <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="lux-navlink" style={{ padding: "12px 4px", fontSize: 16, borderBottom: "1px solid var(--lux-line)" }}>{l.label}</Link>
               ))}
               <div className="flex items-center justify-between" style={{ paddingTop: 14 }}>
-                <Link href="/login" className={`${btn} inline-flex`} style={iconBtn} aria-label="Account" onClick={() => setOpen(false)}><User size={20} /></Link>
+                <Link href={account} className={`${btn} inline-flex`} style={iconBtn} aria-label={session ? "My account" : "Sign in"} onClick={() => setOpen(false)}><User size={20} /></Link>
                 <span className="inline-flex items-center gap-2"><CurrencyToggle /><ModeToggle /></span>
               </div>
             </div>
