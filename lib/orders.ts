@@ -2,12 +2,16 @@ import type { CartItem } from "@/lib/cart";
 import type { PaymentId } from "@/lib/config";
 import type { Totals } from "@/lib/checkout";
 
+// Orders live in Postgres. This module holds the shape the UI renders, and the guest tokens the browser
+// keeps: a token is issued once at checkout and, together with the order number, proves the order is yours.
+
 export type Order = {
-  id: string;
+  id: string; // MB-NNNNN
   placedAt: string; // ISO
   items: CartItem[];
   totals: Totals;
   pay: PaymentId;
+  status: string;
   intl: boolean;
   name: string;
   phone: string;
@@ -17,37 +21,39 @@ export type Order = {
   address: string;
 };
 
-const KEY = "misk_last_order_v1";
-const HISTORY_KEY = "misk_orders_v1";
+/** Current server-side price and stock for a bag line, returned when the bag is out of date. */
+export type FreshLine = { slug: string; size: string; price: number; original: number; stock: number };
 
-/** Until there is a backend, the last order lives in this browser only. */
-export const orderStore = {
-  key: KEY,
-  save(order: Order) {
+const KEY = "misk_order_tokens_v1";
+const EVENT = "misk-order";
+
+export type OrderRef = { no: string; token: string };
+
+export const orderTokens = {
+  remember(no: string, token: string) {
     try {
-      localStorage.setItem(KEY, JSON.stringify(order));
-      const past: Order[] = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-      const history = [order, ...(Array.isArray(past) ? past : []).filter((o) => o?.id !== order.id)].slice(0, 30);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-      window.dispatchEvent(new Event("misk-order"));
+      const all = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+      localStorage.setItem(KEY, JSON.stringify({ ...(all && typeof all === "object" ? all : {}), [no]: token }));
+      window.dispatchEvent(new Event(EVENT));
     } catch {}
   },
   subscribe(cb: () => void) {
-    window.addEventListener("misk-order", cb);
+    window.addEventListener(EVENT, cb);
     window.addEventListener("storage", cb);
-    return () => { window.removeEventListener("misk-order", cb); window.removeEventListener("storage", cb); };
+    return () => { window.removeEventListener(EVENT, cb); window.removeEventListener("storage", cb); };
   },
+  /** Raw JSON, so it can feed useSyncExternalStore (a stable string, not a fresh object). */
   read(): string | null {
     try { return localStorage.getItem(KEY); } catch { return null; }
   },
-  /** Every order placed from this browser, newest first (raw JSON). */
-  readHistory(): string | null {
-    try { return localStorage.getItem(HISTORY_KEY); } catch { return null; }
+  parse(raw: string | null): OrderRef[] {
+    try {
+      const all = raw ? JSON.parse(raw) : {};
+      return Object.entries(all as Record<string, unknown>)
+        .filter(([, t]) => typeof t === "string")
+        .map(([no, token]) => ({ no, token: token as string }));
+    } catch {
+      return [];
+    }
   },
-};
-
-/** Order number like MB-48213. Not secure or unique across customers; the server will issue real ones. */
-export const newOrderId = () => {
-  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 90000;
-  return `MB-${10000 + n}`;
 };

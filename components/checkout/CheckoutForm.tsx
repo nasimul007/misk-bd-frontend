@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Lock, Truck } from "lucide-react";
 import { useCart } from "@/lib/cart";
-import { computeTotals, dialFor, emptyForm, estimateFor, bdLocal, validate, type CheckoutForm as Form } from "@/lib/checkout";
-import { paymentsFor, type PaymentId } from "@/lib/config";
+import { computeTotals, dialFor, emptyForm, estimateFor, validate, type CheckoutForm as Form } from "@/lib/checkout";
+import { paymentsFor } from "@/lib/config";
 import { countries, dialCodes, geo } from "@/lib/data/geo";
 import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
-import { newOrderId, orderStore, type Order } from "@/lib/orders";
+import { placeOrderAction } from "@/app/actions/orders";
+import { orderTokens } from "@/lib/orders";
 import { Field, ariaFor } from "./Field";
 
 const card = { borderRadius: 18, padding: 24 } as const;
@@ -24,9 +25,11 @@ export function CheckoutForm() {
   const items = useCart((s) => s.items);
   const hydrated = useCart((s) => s.hydrated);
   const clear = useCart((s) => s.clear);
+  const sync = useCart((s) => s.sync);
   const [f, setF] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
   const errors = validate(f);
@@ -41,31 +44,31 @@ export function CheckoutForm() {
   const toggleIntl = (intl: boolean) => setF({ ...emptyForm, name: f.name, email: f.email, street: f.street, intl, pay: intl ? "stripe" : "bkash" });
   const pickCountry = (country: string) => setF((p) => ({ ...p, country, dial: dialFor(country) }));
 
-  const place = (e: React.FormEvent) => {
+  const place = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
     if (!ok || placing || items.length === 0) return;
     setPlacing(true);
-    const digits = f.phone.replace(/\D/g, "");
-    const order: Order = {
-      id: newOrderId(),
-      placedAt: new Date().toISOString(),
-      items,
-      totals: t,
-      pay: f.pay as PaymentId,
-      intl: f.intl,
-      name: f.name.trim(),
-      phone: f.intl ? `${f.dial} ${digits}` : `+880 ${bdLocal(f.phone).slice(1)}`,
-      email: f.email.trim(),
-      country: f.intl ? f.country : "Bangladesh",
-      division: f.intl ? f.country : f.division,
-      address: f.intl
-        ? [f.street.trim(), f.city.trim(), f.region.trim(), f.postal.trim(), f.country].join(", ")
-        : [f.street.trim(), f.thana, f.district, f.division].join(", "),
-    };
-    orderStore.save(order);
-    clear();
-    router.push(`/order/${order.id}`);
+    setNotice(null);
+    try {
+      // The server re-prices everything; we send only what was chosen and the total the shopper saw.
+      const res = await placeOrderAction({
+        lines: items.map((i) => ({ slug: i.id, size: i.size, qty: i.qty })),
+        form: f,
+        expectedTotal: t.total,
+      });
+      if (res.ok) {
+        orderTokens.remember(res.orderNo, res.token);
+        clear();
+        router.push(`/order/${res.orderNo}`);
+        return;
+      }
+      if ("fresh" in res) sync(res.fresh);
+      setNotice(res.message);
+    } catch {
+      setNotice("We couldn't reach the server. Please check your connection and try again.");
+    }
+    setPlacing(false);
   };
 
   if (!hydrated) return <div style={{ minHeight: "50vh" }} aria-busy="true" />;
@@ -217,6 +220,7 @@ export function CheckoutForm() {
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
         {t.savings > 0 && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--lux-success)", textAlign: "right" }}>You save {money(t.savings)} on this order</p>}
         <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : "Place order"}</button>
+        {notice && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13, color: "var(--lux-warning)", textAlign: "center" }}>{notice}</p>}
         {touched && !ok && <p role="alert" style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-warning)", textAlign: "center" }}>Please fix the highlighted fields.</p>}
         <p className="flex items-center justify-center gap-1.5" style={{ fontSize: 12, color: "var(--lux-ink-muted)", textAlign: "center", marginTop: 12 }}><Lock size={12} /> Secure checkout</p>
       </aside>

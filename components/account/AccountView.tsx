@@ -11,7 +11,8 @@ import { Field, ariaFor } from "@/components/checkout/Field";
 import { saveAddresses, signIn, signOut, useAddresses, useSession, type Session } from "@/lib/auth";
 import { bdLocal } from "@/lib/checkout";
 import { useMoney } from "@/lib/currency";
-import { orderStore, type Order } from "@/lib/orders";
+import { lookupOrdersAction } from "@/app/actions/orders";
+import { orderTokens, type Order } from "@/lib/orders";
 
 type Tab = "orders" | "profile" | "addresses";
 const tabs: { id: Tab; label: string; Icon: typeof Package }[] = [
@@ -21,16 +22,20 @@ const tabs: { id: Tab; label: string; Icon: typeof Package }[] = [
 ];
 
 function useOrders(): Order[] | undefined {
-  const raw = useSyncExternalStore(orderStore.subscribe, orderStore.readHistory, () => undefined);
-  return useMemo(() => {
-    if (raw === undefined) return undefined;
-    try {
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? (list as Order[]).filter((o) => o && typeof o.id === "string" && Array.isArray(o.items)) : [];
-    } catch {
-      return [];
-    }
-  }, [raw]);
+  const raw = useSyncExternalStore(orderTokens.subscribe, orderTokens.read, () => undefined);
+  const refs = useMemo(() => (raw === undefined ? undefined : orderTokens.parse(raw)), [raw]);
+  const [loaded, setLoaded] = useState<{ raw: string | null; orders: Order[] } | null>(null);
+
+  useEffect(() => {
+    if (!refs || refs.length === 0) return;
+    let live = true;
+    lookupOrdersAction(refs).then((orders) => live && setLoaded({ raw: raw ?? null, orders }));
+    return () => { live = false; };
+  }, [refs, raw]);
+
+  if (!refs) return undefined;
+  if (refs.length === 0) return [];
+  return loaded?.raw === (raw ?? null) ? loaded.orders : undefined;
 }
 
 const date = (iso: string) => {
@@ -62,7 +67,7 @@ function Orders() {
               <Link href={`/order/${o.id}`} style={{ fontWeight: 600 }}>{o.id}</Link>
               <div style={{ fontSize: 13, color: "var(--lux-ink-muted)" }}>{date(o.placedAt)} · {count} item{count === 1 ? "" : "s"}</div>
             </div>
-            <Badge tone="warning">Pending</Badge>
+            <Badge tone={o.status === "delivered" ? "success" : o.status === "cancelled" || o.status === "returned" ? "danger" : "warning"}>{o.status}</Badge>
             <div className="font-display" style={{ fontSize: 18, color: "var(--lux-gold)", minWidth: 90, textAlign: "right" }}>{money(o.totals.total)}</div>
             <Button variant="ghost" size="sm" href="/shop">Reorder</Button>
           </li>

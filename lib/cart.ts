@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { FreshLine } from "@/lib/orders";
 import type { PricedProduct } from "@/lib/types";
 
 export type CartItem = {
@@ -25,6 +26,7 @@ type CartState = {
   remove: (key: string) => void;
   changeQty: (key: string, delta: number) => void;
   clear: () => void;
+  sync: (fresh: FreshLine[]) => void;
   openDrawer: () => void;
   closeDrawer: () => void;
   dismissToast: () => void;
@@ -74,6 +76,15 @@ export const useCart = create<CartState>()(
       changeQty: (key, delta) =>
         set((s) => ({ items: s.items.map((i) => (i.key === key ? { ...i, qty: Math.max(1, Math.min(i.stock, i.qty + delta)) } : i)) })),
       clear: () => set({ items: [] }),
+      // Adopt the server's current price and stock; drop lines it no longer sells.
+      sync: (fresh) =>
+        set((s) => ({
+          items: s.items.flatMap((i) => {
+            const f = fresh.find((x) => x.slug === i.id && x.size === i.size);
+            if (!f || f.stock <= 0) return [];
+            return [{ ...i, price: f.price, original: f.original, stock: f.stock, qty: Math.min(i.qty, f.stock) }];
+          }),
+        })),
       openDrawer: () => set({ drawerOpen: true }),
       closeDrawer: () => set({ drawerOpen: false }),
       dismissToast: () => set({ toast: null }),

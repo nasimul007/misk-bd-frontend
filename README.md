@@ -47,4 +47,4 @@ npm run db:seed          # load the prototype catalogue (safe to re-run)
 npm run db:studio        # browse the data
 ```
 
-The site still reads `lib/data/seed.ts`; switching `lib/data/index.ts` to Prisma is the next step.
+The storefront reads the catalogue from Postgres (`lib/data/index.ts`). Orders are created on the server (`lib/server/orders.ts`), which re-prices every line and locks stock inside one transaction; the browser only keeps a guest token per order.

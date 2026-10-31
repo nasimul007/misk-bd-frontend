@@ -2,28 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Check } from "lucide-react";
 import { payments } from "@/lib/config";
 import { estimateFor } from "@/lib/checkout";
 import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
-import { orderStore, type Order } from "@/lib/orders";
+import { lookupOrdersAction } from "@/app/actions/orders";
+import { orderTokens, type Order } from "@/lib/orders";
 
+/** `undefined` while loading, `null` when this browser holds no valid token for the order. */
 function useOrder(id: string): Order | null | undefined {
-  const raw = useSyncExternalStore(orderStore.subscribe, orderStore.read, () => undefined);
-  return useMemo(() => {
-    if (raw === undefined) return undefined; // not read yet (server / first paint)
-    try {
-      const o = raw ? (JSON.parse(raw) as Order) : null;
-      return o && o.id === id ? o : null;
-    } catch {
-      return null;
-    }
-  }, [raw, id]);
+  const raw = useSyncExternalStore(orderTokens.subscribe, orderTokens.read, () => undefined);
+  const token = useMemo(() => (raw === undefined ? undefined : orderTokens.parse(raw).find((r) => r.no === id)?.token ?? null), [raw, id]);
+  const [loaded, setLoaded] = useState<{ id: string; order: Order | null } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    lookupOrdersAction([{ no: id, token }]).then((found) => live && setLoaded({ id, order: found[0] ?? null }));
+    return () => { live = false; };
+  }, [id, token]);
+
+  if (token === undefined) return undefined;
+  if (token === null) return null;
+  return loaded?.id === id ? loaded.order : undefined;
 }
 
-/** Confirmation and receipt. Until there is a backend, only the browser that placed the order can show it. */
+/** Confirmation and receipt. Shown only to a browser that holds the order's guest token. */
 export function OrderReceipt({ id }: { id: string }) {
   const money = useMoney();
   const currency = useCurrency();
@@ -34,7 +40,7 @@ export function OrderReceipt({ id }: { id: string }) {
     return (
       <div style={{ padding: "60px 0", textAlign: "center" }}>
         <h1 className="font-display" style={{ fontSize: 28, fontWeight: 500 }}>We can&apos;t find that order</h1>
-        <p style={{ color: "var(--lux-ink-muted)", margin: "10px 0 20px" }}>Order {id} isn&apos;t saved in this browser.</p>
+        <p style={{ color: "var(--lux-ink-muted)", margin: "10px 0 20px" }}>Order {id} can&apos;t be shown in this browser. Open it on the device you ordered from.</p>
         <Link href="/shop" className="lux-btn lux-focus">Continue shopping</Link>
       </div>
     );
