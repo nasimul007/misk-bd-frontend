@@ -43,7 +43,7 @@ export type Discount = {
 
 export type PriceInfo = { size: string; original: number; price: number; saving: number; pct: number; rule: Discount | null };
 export type CardPrice = { price: number; maxPrice: number; compareAt?: number; discountLabel?: string };
-export type PricedProduct = Product & { card: CardPrice; onSale: boolean };
+export type PricedProduct = Product & { card: CardPrice; onSale: boolean; sizes: PriceInfo[] };
 
 export type Section = {
   id: string;

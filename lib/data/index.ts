@@ -1,7 +1,7 @@
 // Data-access layer. Pages import ONLY from here. Today it returns seed data;
 // when the backend (Postgres/Prisma/Supabase/API) is chosen, swap these
 // function bodies — the pages and components stay untouched.
-import type { PriceInfo, PricedProduct, Product, SiteContent } from "@/lib/types";
+import type { PricedProduct, Product, SiteContent } from "@/lib/types";
 import { cardPrice, priceInfo } from "@/lib/pricing";
 import { discounts, products, siteContent } from "./seed";
 
@@ -9,6 +9,7 @@ const priced = (p: Product): PricedProduct => ({
   ...p,
   card: cardPrice(p, discounts),
   onSale: p.variants.some((v) => priceInfo(p, v.size, discounts).saving > 0),
+  sizes: p.variants.map((v) => priceInfo(p, v.size, discounts)),
 });
 
 export async function getSiteContent(): Promise<SiteContent> {
@@ -40,10 +41,4 @@ export async function getRelated(slug: string, limit = 4): Promise<PricedProduct
   const same = me ? others.filter((p) => p.section === me.section) : [];
   const rest = others.filter((p) => !same.includes(p));
   return [...same, ...rest].slice(0, limit);
-}
-
-/** Every size with its discounted price, for the product page configurator. */
-export async function getSizePrices(slug: string): Promise<PriceInfo[]> {
-  const p = products.find((x) => x.id === slug);
-  return p ? p.variants.map((v) => priceInfo(p, v.size, discounts)) : [];
 }

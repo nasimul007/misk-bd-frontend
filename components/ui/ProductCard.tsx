@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { PricedProduct } from "@/lib/types";
 import { money } from "@/lib/format";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { Badge } from "./Badge";
 
 /** Storefront product card: frosted surface, square image, serif title, gold price. */
@@ -30,8 +31,7 @@ export function ProductCard({ product }: { product: PricedProduct }) {
         </div>
       </Link>
       <div style={{ padding: "0 14px 14px" }}>
-        {/* Cart wiring lands with the cart feature. */}
-        <button type="button" className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.7rem 1rem", fontSize: "0.85rem" }}>Add to Cart</button>
+        <AddToCartButton product={product} />
       </div>
     </div>
   );

@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { StockPill } from "@/components/ui/StockPill";
 import { money } from "@/lib/format";
-import type { CardPrice, PriceInfo } from "@/lib/types";
+import { useCart } from "@/lib/cart";
+import type { PricedProduct } from "@/lib/types";
 
-type Props = { title: string; stock: number; card: CardPrice; sizes: PriceInfo[] };
-
-/** Price, size picker, quantity stepper and add-to-cart. Cart wiring lands with the cart feature. */
-export function ProductBuy({ title, stock, card, sizes }: Props) {
+/** Price, size picker, quantity stepper and add-to-cart. */
+export function ProductBuy({ product }: { product: PricedProduct }) {
+  const { title, stock, card, sizes } = product;
+  const add = useCart((s) => s.add);
   const [size, setSize] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const info = size ? sizes.find((s) => s.size === size) : undefined;
@@ -61,7 +62,7 @@ export function ProductBuy({ title, stock, card, sizes }: Props) {
             <span style={{ width: 40, textAlign: "center", fontSize: 17, fontWeight: 600 }} aria-live="polite">{qty}</span>
             <button type="button" onClick={() => setQty((q) => Math.min(stock, q + 1))} disabled={atMax} className="inline-flex items-center justify-center" style={{ ...stepBtn, color: atMax ? "var(--lux-ink-muted)" : "var(--lux-ink)", cursor: atMax ? "not-allowed" : "pointer" }} aria-label="Increase quantity"><Plus size={15} /></button>
           </div>
-          <Button variant="fill" style={{ flex: 1, minWidth: 160, height: 52 }} disabled={!size || stock <= 0} icon={<ShoppingBag size={17} />} aria-label={`Add ${title} to cart`}>Add to Cart</Button>
+          <Button variant="fill" style={{ flex: 1, minWidth: 160, height: 52 }} disabled={!size || stock <= 0} onClick={() => size && add(product, size, qty)} icon={<ShoppingBag size={17} />} aria-label={`Add ${title} to cart`}>Add to Cart</Button>
         </div>
         {atMax && stock > 0 && <p style={{ fontSize: 12, color: "var(--lux-warning)", margin: 0 }}>Only {stock} left in stock &mdash; that&apos;s the most you can add.</p>}
       </div>

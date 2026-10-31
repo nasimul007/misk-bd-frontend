@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, ChevronRight, ShieldCheck, Star } from "lucide-react";
-import { getProduct, getProductSlugs, getRelated, getSiteContent, getSizePrices } from "@/lib/data";
+import { getProduct, getProductSlugs, getRelated, getSiteContent } from "@/lib/data";
 import { Badge } from "@/components/ui/Badge";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ProductBuy } from "@/components/product/ProductBuy";
@@ -22,7 +22,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
   const product = await getProduct(slug);
   if (!product) notFound();
 
-  const [content, sizes, related] = await Promise.all([getSiteContent(), getSizePrices(slug), getRelated(slug)]);
+  const [content, related] = await Promise.all([getSiteContent(), getRelated(slug)]);
   const sec = content.sections.find((s) => s.id === product.section);
   const sub = sec?.children.find((c) => c.id === product.sub);
 
@@ -67,7 +67,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
             </div>
           </div>
 
-          <ProductBuy title={product.title} stock={product.stock} card={product.card} sizes={sizes} />
+          <ProductBuy product={product} />
           <p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--lux-ink-muted)", margin: 0 }}>{product.description}</p>
 
           <div className="lux-glass lux-glass--gold flex items-start gap-3.5" style={{ borderRadius: 16, padding: "18px 20px" }}>

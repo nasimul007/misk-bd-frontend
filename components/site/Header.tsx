@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Menu, Phone, MessageCircle, Plane, Search, ShoppingBag, User, X } from "lucide-react";
+import { Menu, Phone, MessageCircle, Plane, Search, User, X } from "lucide-react";
 import { ModeToggle } from "@/components/ui/ModeToggle";
+import { CartButton } from "@/components/cart/CartButton";
 import { Logo } from "./Logo";
 
 const links = [
@@ -53,7 +54,7 @@ export function Header() {
               <span className="hidden lg:inline-flex"><ModeToggle /></span>
               <Link href="/shop" className={`${btn} inline-flex`} style={iconBtn} aria-label="Search"><Search size={19} /></Link>
               <Link href="/login" style={iconBtn} aria-label="Account" className={`${btn} hidden lg:inline-flex`}><User size={19} /></Link>
-              <Link href="/cart" className={`${btn} inline-flex`} style={iconBtn} aria-label="Cart"><ShoppingBag size={19} /></Link>
+              <CartButton />
             </div>
           </div>
         </div>

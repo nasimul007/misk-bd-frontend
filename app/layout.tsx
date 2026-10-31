@@ -3,6 +3,7 @@ import { Bodoni_Moda, Poppins } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
+import { CartProvider } from "@/components/cart/CartProvider";
 import { getSiteContent } from "@/lib/data";
 
 const bodoni = Bodoni_Moda({
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Header />
         <main>{children}</main>
         <Footer content={content.footer} />
+        <CartProvider />
       </body>
     </html>
   );
