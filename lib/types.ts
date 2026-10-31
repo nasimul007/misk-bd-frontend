@@ -50,6 +50,7 @@ export type Section = {
   name: string;
   blurb: string;
   image: string;
+  showSpecs?: boolean; // show the fragrance details table on product pages
   children: { id: string; name: string }[];
 };
 

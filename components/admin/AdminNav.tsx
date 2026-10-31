@@ -20,7 +20,8 @@ export function AdminNav({ items, name, role }: { items: Item[]; name: string; r
         </Link>
       ))}
       <span style={{ flex: 1 }} />
-      <span style={{ fontSize: 13, color: "var(--lux-ink-muted)", padding: "0 8px" }}>{name} · {role}</span>
+      <Link href="/" className="lux-focus" style={{ fontSize: 13, color: "var(--lux-ink-muted)", padding: "0 8px" }}>Exit to storefront</Link>
+      <span style={{ fontSize: 13, color: "var(--lux-ink-muted)", padding: "0 8px" }}>{name} · {role === "owner" ? "Owner" : "Admin"}</span>
       <button type="button" className="lux-btn lux-focus" style={{ padding: "0.45rem 1rem", fontSize: "0.8rem" }}
         onClick={async () => { await adminLogoutAction(); router.replace("/admin/login"); }}>Sign out</button>
     </nav>

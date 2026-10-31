@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { discountArgs, productArgs, toDiscount, toProduct } from "./mappers";
 import { cardPrice, priceInfo } from "@/lib/pricing";
 import type { Discount, PricedProduct, Product, Section, SiteContent } from "@/lib/types";
+import { BLOCK_KEYS, parseBlock } from "@/lib/site-blocks";
 import { siteContent } from "./seed";
 
 const priced = (p: Product, discounts: Discount[]): PricedProduct => ({
@@ -34,10 +35,18 @@ export async function getSiteContent(): Promise<SiteContent> {
     name: s.name,
     blurb: s.blurb,
     image: s.image,
+    showSpecs: s.showSpecs,
     children: s.subsections.map((c) => ({ id: c.slug, name: c.name })),
   }));
-  // Hero, testimonials, footer etc. are still code-defined until the admin panel manages them.
-  return { ...siteContent, sections };
+
+  // Owner-edited blocks override the built-in defaults. Each is re-validated on the way out, so a bad
+  // row can never break the storefront: it just falls back to the default for that block.
+  const overrides: Record<string, unknown> = {};
+  for (const row of await db.siteBlock.findMany({ where: { key: { in: [...BLOCK_KEYS] } } })) {
+    const r = parseBlock(row.key, row.data);
+    if (r.ok) overrides[row.key] = r.data;
+  }
+  return { ...siteContent, ...overrides, sections } as SiteContent;
 }
 
 export async function getProducts(): Promise<PricedProduct[]> {

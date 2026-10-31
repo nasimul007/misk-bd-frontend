@@ -6,7 +6,7 @@ import { requireStaffPage } from "@/lib/server/staff-session";
 const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
 export default async function DiscountsPage() {
-  await requireStaffPage();
+  await requireStaffPage("owner");
   const [rows, products] = await Promise.all([
     db.discount.findMany({ include: { targetProduct: { select: { slug: true, title: true } } }, orderBy: { createdAt: "desc" } }),
     db.product.findMany({ orderBy: { title: "asc" }, select: { slug: true, title: true } }),

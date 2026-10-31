@@ -6,7 +6,7 @@ import { Year } from "./Year";
 
 const cats = ["Men's Perfume", "Women's Perfume", "Unisex", "Cologne", "Premium"];
 const help = [["Authenticity Guarantee", "/authenticity"], ["Shipping & Delivery", "/shipping"], ["Returns & Refunds", "/returns"], ["About Us", "/about"]];
-const legal = [["Terms & Conditions", "/terms"], ["Privacy Policy", "/privacy"], ["Refund Policy", "/returns"], ["Warranty Policy", "/warranty"]];
+const legal = [["Terms & Conditions", "/terms"], ["Privacy Policy", "/privacy"], ["Refund Policy", "/returns"], ["Warranty Policy", "/warranty"], ["Store Admin", "/admin"]];
 
 const link = { color: "var(--lux-ink-muted)", fontSize: 14, textDecoration: "none" } as const;
 const head = { color: "var(--lux-ink)", fontWeight: 500, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.16em", marginBottom: 6 } as const;

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Banknote, ShieldCheck, Truck, Undo2, type LucideIcon } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { TRUST_ICONS } from "@/lib/trust-icons";
 import { getBestSellers, getSiteContent } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -8,12 +9,6 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { Testimonial } from "@/components/ui/Testimonial";
 
-const trustIcons: Record<string, LucideIcon> = {
-  "shield-check": ShieldCheck,
-  truck: Truck,
-  banknote: Banknote,
-  "undo-2": Undo2,
-};
 
 const scrim = "linear-gradient(180deg, transparent 40%, var(--lux-scrim) 100%)";
 
@@ -47,7 +42,7 @@ export default async function HomePage() {
       <section style={{ borderBottom: "1px solid var(--lux-line)" }}>
         <div className="alignment" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 4, padding: "10px 24px" }}>
           {trust.map((t) => {
-            const Icon = trustIcons[t.icon] ?? ShieldCheck;
+            const Icon = TRUST_ICONS[t.icon] ?? ShieldCheck;
             return (
               <div key={t.title} className="flex items-center gap-3" style={{ padding: "16px 12px" }}>
                 <span className="lux-glass" style={{ width: 40, height: 40, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--lux-gold)", flex: "none" }}><Icon size={18} /></span>

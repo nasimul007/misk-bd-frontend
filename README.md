@@ -57,7 +57,12 @@ Set `AUTH_SECRET` in `.env` (see `.env.example`). SMS and email use the `console
 
 ## Admin panel
 
-Lives at `/admin` with its own staff accounts, cookie and layout. Staff can manage orders (status flow, restock on cancel or return), products, discounts and, for the owner, other staff. Changes to products and discounts update the public shop immediately.
+Lives at `/admin` (linked as "Store Admin" in the footer) with its own staff accounts, cookie and layout. Two roles, enforced on the server for every page and action:
+
+- **Owner**: everything. Overview with revenue, Products, Sections (collections and sub-sections), Discounts, Orders, Inventory, Site content (hero, trust bar, manifesto, categories, testimonials, call to action, footer), Staff access, image upload.
+- **Admin**: Overview (no revenue), Orders and Inventory only.
+
+Changes to products, discounts, sections and site content update the public store immediately. Stock changes from staff and from orders are all recorded in the Inventory history.
 
 Create the first account (it prints a one-time password you must change at first sign-in):
 
@@ -66,5 +71,7 @@ npm run admin:create -- owner "Your Name" owner
 ```
 
 Sessions end after 15 minutes without activity, accounts lock after repeated wrong passwords, and every change is recorded in `audit_log`. Every mutation re-checks the staff role on the server (`assertStaff` in `lib/server/staff-session.ts`); hiding a menu item is cosmetic.
+
+Image uploads are re-encoded (WebP, max 1600px) and stored by `lib/server/storage.ts`. The `local` provider writes to `public/uploads` and is for development only; production needs an object-storage provider added there.
 
 Keep the database timezone on UTC (managed hosts do by default). `scripts/db-dev.sh` already starts the local database that way.

@@ -28,14 +28,26 @@ async function Shell({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  const items = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/orders", label: "Orders" },
-    { href: "/admin/products", label: "Products" },
-    { href: "/admin/discounts", label: "Discounts" },
-    ...(staff.role === "owner" ? [{ href: "/admin/staff", label: "Staff" }] : []),
-    { href: "/admin/account", label: "My account" },
-  ];
+  // Owners run the whole store; admins handle orders and stock only. The server enforces this too.
+  const items =
+    staff.role === "owner"
+      ? [
+          { href: "/admin", label: "Overview" },
+          { href: "/admin/products", label: "Products" },
+          { href: "/admin/sections", label: "Sections" },
+          { href: "/admin/discounts", label: "Discounts" },
+          { href: "/admin/orders", label: "Orders" },
+          { href: "/admin/inventory", label: "Inventory" },
+          { href: "/admin/content", label: "Site content" },
+          { href: "/admin/staff", label: "Staff access" },
+          { href: "/admin/account", label: "My account" },
+        ]
+      : [
+          { href: "/admin", label: "Overview" },
+          { href: "/admin/orders", label: "Orders" },
+          { href: "/admin/inventory", label: "Inventory" },
+          { href: "/admin/account", label: "My account" },
+        ];
   return (
     <>
       <AdminNav items={items} name={staff.name} role={staff.role} />

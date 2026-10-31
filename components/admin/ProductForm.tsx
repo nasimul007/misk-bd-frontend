@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, ariaFor } from "@/components/checkout/Field";
+import { ImageField } from "@/components/admin/ImageField";
 import { saveProductAction, type ProductInput } from "@/app/actions/admin";
 
 const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"];
@@ -12,7 +13,7 @@ const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"];
 export type ProductFormData = Omit<ProductInput, "variants"> & { variants: { size: string; price: string }[] };
 
 /** Create or edit a product. The server validates everything again; these checks just save a round trip. */
-export function ProductForm({ initial, sections }: { initial: ProductFormData; sections: { slug: string; name: string }[] }) {
+export function ProductForm({ initial, sections }: { initial: ProductFormData; sections: { slug: string; name: string; children: { slug: string; name: string }[] }[] }) {
   const router = useRouter();
   const [f, setF] = useState<ProductFormData>(initial);
   const [error, setError] = useState("");
@@ -20,6 +21,7 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
   const [busy, setBusy] = useState(false);
 
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) => { setF((p) => ({ ...p, [k]: v })); setSaved(false); };
+  const subs = sections.find((x) => x.slug === f.sectionSlug)?.children ?? [];
   const price = (size: string) => f.variants.find((v) => v.size === size)?.price;
   const setPrice = (size: string, value: string) =>
     set("variants", value === "" && !f.variants.some((v) => v.size === size) ? f.variants : [...f.variants.filter((v) => v.size !== size), ...(value === "" ? [] : [{ size, price: value }])]);
@@ -53,9 +55,15 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
           <Field id="pf-cat" label="Category *"><input id="pf-cat" className="lux-input" placeholder="Men's Perfume" value={f.category} maxLength={60} onChange={(e) => set("category", e.target.value)} /></Field>
           <Field id="pf-fam" label="Scent family"><input id="pf-fam" className="lux-input" placeholder="Oud & Amber" value={f.scentFamily} maxLength={60} onChange={(e) => set("scentFamily", e.target.value)} /></Field>
           <Field id="pf-sec" label="Collection">
-            <select id="pf-sec" className="lux-input" value={f.sectionSlug} onChange={(e) => set("sectionSlug", e.target.value)}>
+            <select id="pf-sec" className="lux-input" value={f.sectionSlug} onChange={(e) => setF((p) => ({ ...p, sectionSlug: e.target.value, subsectionSlug: "" }))}>
               <option value="">None</option>
               {sections.map((s) => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field id="pf-sub" label="Sub-section">
+            <select id="pf-sub" className="lux-input" value={f.subsectionSlug} disabled={!subs.length} onChange={(e) => set("subsectionSlug", e.target.value)}>
+              <option value="">{subs.length ? "None" : "No sub-sections"}</option>
+              {subs.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
             </select>
           </Field>
           <Field id="pf-tags" label="Tags (comma separated)"><input id="pf-tags" className="lux-input" placeholder="best seller, premium" value={f.tags} onChange={(e) => set("tags", e.target.value)} /></Field>
@@ -95,11 +103,17 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
       </section>
 
       <section className="lux-surface" style={section}>
-        <h2 style={h}>Images</h2>
-        <Field id="pf-img" label="Image addresses, one per line (first is the main photo, second shows on hover)">
-          <textarea id="pf-img" rows={4} className="lux-input" placeholder="/images/product-1.jpg" value={f.images.join("\n")} onChange={(e) => set("images", e.target.value.split("\n"))} />
-        </Field>
-        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Up to 5, each starting with / (a file in the site) or https://. Photo upload comes with image storage.</p>
+        <h2 style={h}>Photos</h2>
+        <div className="flex flex-wrap gap-4">
+          {[...f.images, ...(f.images.length < 5 ? [""] : [])].map((url, i) => (
+            <div key={i} className="flex flex-col items-start gap-1">
+              <ImageField label={i === 0 ? "Main photo" : `Photo ${i + 1}`} size={96} value={url} onChange={(u) => set("images", url ? f.images.map((x, j) => (j === i ? u : x)) : [...f.images, u])} />
+              <span style={{ fontSize: 11.5, color: "var(--lux-ink-muted)" }}>{i === 0 ? "Main" : i === 1 ? "Hover" : `Photo ${i + 1}`}</span>
+              {url && <button type="button" onClick={() => set("images", f.images.filter((_, j) => j !== i))} className="lux-focus" style={{ border: 0, background: "none", color: "var(--lux-ink-muted)", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>Remove</button>}
+            </div>
+          ))}
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Up to 5. The first is the main photo and the second shows when a shopper hovers. JPEG, PNG, WebP or GIF under 5 MB; they are resized and converted for you.</p>
       </section>
 
       {error && <p role="alert" {...ariaFor("pf-title", error)} style={{ margin: 0, fontSize: 14, color: "var(--lux-warning)" }}>{error}</p>}

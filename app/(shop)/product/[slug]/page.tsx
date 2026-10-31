@@ -35,6 +35,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
     ["Key sourcing", product.origin],
     ["Available sizes", product.variants.map((v) => v.size).join(" · ")],
   ] as const).filter(([, v]) => v);
+  const showSpecs = sec?.showSpecs !== false;
 
   const crumb = { display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "12px 0", fontSize: 14, color: "var(--lux-ink-muted)" } as const;
 
@@ -78,7 +79,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
             </div>
           </div>
 
-          <div className="glass-card" style={{ borderRadius: 16, padding: 24 }}>
+          {showSpecs && <div className="glass-card" style={{ borderRadius: 16, padding: 24 }}>
             <h2 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>Specifications</h2>
             <dl style={{ margin: 0 }}>
               {specs.map(([k, v], i) => (
@@ -88,7 +89,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
                 </div>
               ))}
             </dl>
-          </div>
+          </div>}
 
           <ul className="flex flex-wrap gap-x-6 gap-y-2" style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 13, color: "var(--lux-ink-muted)" }}>
             {["100% authentic", "Cash on delivery", "Nationwide shipping", "7-day returns"].map((f) => (

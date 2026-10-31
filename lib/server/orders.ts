@@ -168,7 +168,8 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
     const perProduct = new Map<string, number>();
     for (const p of priced) perProduct.set(p.row.id, (perProduct.get(p.row.id) ?? 0) + p.line.qty);
     for (const [id, qty] of perProduct) {
-      await tx.product.update({ where: { id }, data: { stock: { decrement: qty } } });
+      const p = await tx.product.update({ where: { id }, data: { stock: { decrement: qty } } });
+      await tx.inventoryAdjustment.create({ data: { productId: id, delta: -qty, stockAfter: p.stock, reason: `Order ${orderNo(order.number)} placed`, orderNumber: order.number, username: "system" } });
     }
     return { ok: true, orderNo: orderNo(order.number), token };
   });

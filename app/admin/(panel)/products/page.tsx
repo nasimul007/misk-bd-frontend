@@ -6,7 +6,7 @@ import { money } from "@/lib/format";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
 export default async function ProductsPage() {
-  await requireStaffPage();
+  await requireStaffPage("owner");
   const products = await db.product.findMany({ include: { variants: { select: { priceBdt: true } } }, orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
   return (
     <>

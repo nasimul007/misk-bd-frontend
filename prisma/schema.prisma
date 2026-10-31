@@ -106,36 +106,37 @@ model Subsection {
 }
 
 model Product {
-  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug          String           @unique @db.VarChar(120)
-  skuNo         Int              @unique @default(autoincrement()) // shown as MB-####
-  title         String           @db.VarChar(120)
-  titleAr       String?          @db.VarChar(120)
-  description   String           @default("")
-  category      String           @db.VarChar(60)
-  scentFamily   String?          @db.VarChar(60)
-  sectionId     String?          @db.Uuid
-  section       Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  subsectionId  String?          @db.Uuid
-  subsection    Subsection?      @relation(fields: [subsectionId], references: [id], onDelete: SetNull)
-  stock         Int              @default(0)
-  bestseller    Boolean          @default(false)
-  active        Boolean          @default(true)
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String                @unique @db.VarChar(120)
+  skuNo         Int                   @unique @default(autoincrement()) // shown as MB-####
+  title         String                @db.VarChar(120)
+  titleAr       String?               @db.VarChar(120)
+  description   String                @default("")
+  category      String                @db.VarChar(60)
+  scentFamily   String?               @db.VarChar(60)
+  sectionId     String?               @db.Uuid
+  section       Section?              @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  subsectionId  String?               @db.Uuid
+  subsection    Subsection?           @relation(fields: [subsectionId], references: [id], onDelete: SetNull)
+  stock         Int                   @default(0)
+  bestseller    Boolean               @default(false)
+  active        Boolean               @default(true)
   tags          String[]
-  ratingAvg     Decimal          @default(0) @db.Decimal(2, 1)
-  reviewCount   Int              @default(0)
-  soldCount     Int              @default(0)
-  lastingHours  Int?             @db.SmallInt
-  projection    String?          @db.VarChar(60)
-  concentration String?          @db.VarChar(60)
-  origin        String?          @db.VarChar(120)
+  ratingAvg     Decimal               @default(0) @db.Decimal(2, 1)
+  reviewCount   Int                   @default(0)
+  soldCount     Int                   @default(0)
+  lastingHours  Int?                  @db.SmallInt
+  projection    String?               @db.VarChar(60)
+  concentration String?               @db.VarChar(60)
+  origin        String?               @db.VarChar(120)
   variants      ProductVariant[]
   images        ProductImage[]
+  adjustments   InventoryAdjustment[]
   discounts     Discount[]
   orderItems    OrderItem[]
-  archivedAt    DateTime?        @db.Timestamptz
-  createdAt     DateTime         @default(now()) @db.Timestamptz
-  updatedAt     DateTime         @updatedAt @db.Timestamptz
+  archivedAt    DateTime?             @db.Timestamptz
+  createdAt     DateTime              @default(now()) @db.Timestamptz
+  updatedAt     DateTime              @updatedAt @db.Timestamptz
 
   @@index([active, category])
   @@map("products")
@@ -430,4 +431,34 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([at])
   @@map("audit_log")
+}
+
+// ───────── Inventory and site content ─────────
+
+// Every change to a product's stock, by staff or by an order, so the count can always be explained.
+model InventoryAdjustment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId   String   @db.Uuid
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  delta       Int
+  stockAfter  Int
+  reason      String   @db.VarChar(120)
+  orderNumber Int? // set when an order caused the change
+  staffId     String?  @db.Uuid
+  username    String   @db.VarChar(32) // "system" for orders
+  at          DateTime @default(now()) @db.Timestamptz
+
+  @@index([productId, at])
+  @@index([at])
+  @@map("inventory_adjustments")
+}
+
+// Owner-edited storefront content (hero, trust bar, testimonials, footer...). One JSON document per block.
+model SiteBlock {
+  key       String   @id @db.VarChar(40)
+  data      Json
+  updatedBy String?  @db.VarChar(32)
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("site_blocks")
 }
