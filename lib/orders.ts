@@ -46,6 +46,10 @@ export const orderTokens = {
   read(): string | null {
     try { return localStorage.getItem(KEY); } catch { return null; }
   },
+  /** Every order this browser holds a guest token for. */
+  refs(): OrderRef[] {
+    return orderTokens.parse(orderTokens.read());
+  },
   parse(raw: string | null): OrderRef[] {
     try {
       const all = raw ? JSON.parse(raw) : {};

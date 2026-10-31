@@ -9,24 +9,25 @@ import { estimateFor } from "@/lib/checkout";
 import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
 import { lookupOrdersAction } from "@/app/actions/orders";
+import { useSession } from "@/lib/auth";
 import { orderTokens, type Order } from "@/lib/orders";
 
-/** `undefined` while loading, `null` when this browser holds no valid token for the order. */
+/** `undefined` while loading, `null` when this browser can't prove the order is its own. */
 function useOrder(id: string): Order | null | undefined {
   const raw = useSyncExternalStore(orderTokens.subscribe, orderTokens.read, () => undefined);
-  const token = useMemo(() => (raw === undefined ? undefined : orderTokens.parse(raw).find((r) => r.no === id)?.token ?? null), [raw, id]);
+  const session = useSession();
+  const token = useMemo(() => (raw === undefined ? undefined : (orderTokens.parse(raw).find((r) => r.no === id)?.token ?? "")), [raw, id]);
   const [loaded, setLoaded] = useState<{ id: string; order: Order | null } | null>(null);
+  const ready = token !== undefined && session !== undefined; // a signed-in customer may own the order without a token
 
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     let live = true;
     lookupOrdersAction([{ no: id, token }]).then((found) => live && setLoaded({ id, order: found[0] ?? null }));
     return () => { live = false; };
-  }, [id, token]);
+  }, [ready, id, token, session?.id]);
 
-  if (token === undefined) return undefined;
-  if (token === null) return null;
-  return loaded?.id === id ? loaded.order : undefined;
+  return ready && loaded?.id === id ? loaded.order : undefined;
 }
 
 /** Confirmation and receipt. Shown only to a browser that holds the order's guest token. */

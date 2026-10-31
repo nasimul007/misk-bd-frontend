@@ -48,3 +48,9 @@ npm run db:studio        # browse the data
 ```
 
 The storefront reads the catalogue from Postgres (`lib/data/index.ts`). Orders are created on the server (`lib/server/orders.ts`), which re-prices every line and locks stock inside one transaction; the browser only keeps a guest token per order.
+
+## Customer accounts
+
+Sign-in is verified on the server (`lib/server/auth.ts`): phone OTP, email + password (argon2id) and password reset. Sessions are opaque httpOnly cookies backed by the `auth_sessions` table. Guest orders made in a browser are attached to the account when the customer signs in.
+
+Set `AUTH_SECRET` in `.env` (see `.env.example`). SMS and email use the `console` provider in development, which prints the OTP or reset link to the server log. Production needs real providers in `lib/server/notify.ts`; the console provider refuses to run there. Google sign-in is not built yet (needs OAuth credentials).

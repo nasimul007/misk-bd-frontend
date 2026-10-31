@@ -103,7 +103,7 @@ async function priceLines(tx: Tx, lines: OrderLineInput[]) {
   return { priced, fresh, problem, message };
 }
 
-export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+export async function placeOrder(input: PlaceOrderInput, customerId?: string): Promise<PlaceOrderResult> {
   const errors = validate(input.form);
   if (Object.keys(errors).length) return { ok: false, code: "invalid", message: "Please check your details.", errors };
   const f = input.form;
@@ -125,6 +125,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     const order = await tx.order.create({
       data: {
         guestTokenHash: hash(token),
+        customerId: customerId ?? null,
         paymentMethod: f.pay as "bkash",
         paymentStatus: cod ? "cod_pending" : "pending",
         subtotalList: t.listTotal,
@@ -205,14 +206,38 @@ const tokenMatches = (stored: string | null, token: string) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-/** The order number alone grants nothing: the guest token issued at checkout must match too. */
-export async function findOrders(refs: { no: string; token: string }[]): Promise<Order[]> {
-  const wanted = refs
+type Ref = { no: string; token: string };
+const cleanRefs = (refs: Ref[]) =>
+  refs
     .slice(0, 30)
     .map((r) => ({ n: typeof r?.no === "string" ? parseOrderNo(r.no) : null, token: typeof r?.token === "string" ? r.token.slice(0, 100) : "" }))
-    .filter((r): r is { n: number; token: string } => r.n !== null && r.token !== "");
+    .filter((r): r is { n: number; token: string } => r.n !== null);
+
+/**
+ * The order number alone grants nothing: the guest token issued at checkout must match, or the
+ * signed-in customer must own the order.
+ */
+export async function findOrders(refs: Ref[], customerId?: string): Promise<Order[]> {
+  const wanted = cleanRefs(refs);
   if (!wanted.length) return [];
   const rows = await db.order.findMany({ where: { number: { in: wanted.map((w) => w.n) } }, include: { items: true }, orderBy: { createdAt: "desc" } });
   const tokenFor = new Map(wanted.map((w) => [w.n, w.token]));
-  return rows.filter((r) => tokenMatches(r.guestTokenHash, tokenFor.get(r.number) ?? "")).map(toOrder);
+  return rows
+    .filter((r) => (customerId && r.customerId === customerId) || (tokenFor.get(r.number) && tokenMatches(r.guestTokenHash, tokenFor.get(r.number)!)))
+    .map(toOrder);
+}
+
+/** A customer's own orders, plus any guest orders this browser can prove it placed. */
+export async function ordersFor(customerId: string, refs: Ref[] = []): Promise<Order[]> {
+  const mine = await db.order.findMany({ where: { customerId }, include: { items: true }, orderBy: { createdAt: "desc" }, take: 100 });
+  const mineNos = new Set(mine.map((o) => o.number));
+  const guest = await findOrders(refs.filter((r) => !mineNos.has(parseOrderNo(r?.no) ?? -1)));
+  return [...mine.map(toOrder), ...guest].sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+}
+
+/** On sign-in, attach guest orders this browser holds tokens for to the customer. Never touches an order that already has an owner. */
+export async function claimOrders(customerId: string, refs: Ref[]): Promise<void> {
+  const found = await findOrders(refs);
+  const numbers = found.map((o) => parseOrderNo(o.id)).filter((n): n is number => n !== null);
+  if (numbers.length) await db.order.updateMany({ where: { number: { in: numbers }, customerId: null }, data: { customerId } });
 }

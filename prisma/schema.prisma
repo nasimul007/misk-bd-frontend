@@ -1,6 +1,6 @@
 // MISK BD database. Source of truth for the shape is MISK-BD-Backend-Specification.docx §4.2.
 // Money is stored as whole BDT (Int). Timestamps are UTC.
-// Deliberately not here yet: staff accounts, auth sessions, audit log, media assets, reviews, site content
+// Deliberately not here yet: staff accounts, audit log, media assets, reviews, site content
 // blocks and geo reference tables. They arrive with the admin panel; geo stays in lib/data/geo.ts for now.
 
 generator client {
@@ -194,6 +194,8 @@ model Customer {
   lastLoginAt     DateTime?         @db.Timestamptz
   addresses       CustomerAddress[]
   orders          Order[]
+  sessions        AuthSession[]
+  resetTokens     PasswordResetToken[]
   createdAt       DateTime          @default(now()) @db.Timestamptz
   updatedAt       DateTime          @updatedAt @db.Timestamptz
 
@@ -241,12 +243,40 @@ model OtpCode {
 model PasswordResetToken {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   customerId String    @db.Uuid
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tokenHash  String    @unique // hash of a 32-byte random token
   expiresAt  DateTime  @db.Timestamptz
   usedAt     DateTime? @db.Timestamptz
   createdAt  DateTime  @default(now()) @db.Timestamptz
 
   @@map("password_reset_tokens")
+}
+
+// One row per signed-in browser. The cookie holds a random token; only its hash is stored here.
+model AuthSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId String    @db.Uuid
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  userAgent  String?
+  expiresAt  DateTime  @db.Timestamptz
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz
+  revokedAt  DateTime? @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  @@index([customerId])
+  @@map("auth_sessions")
+}
+
+// Feeds sign-in lockout. Keep 90 days.
+model LoginAttempt {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String // lowercased email
+  success    Boolean
+  at         DateTime @default(now()) @db.Timestamptz
+
+  @@index([identifier, at])
+  @@map("login_attempts")
 }
 
 // ───────── Orders ─────────
