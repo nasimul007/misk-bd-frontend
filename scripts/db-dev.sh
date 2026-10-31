@@ -17,7 +17,7 @@ init() {
 case "${1:-start}" in
   start)
     init
-    "$BIN/pg_ctl" -D "$DIR" status >/dev/null 2>&1 || "$BIN/pg_ctl" -D "$DIR" -l "$DIR/server.log" -o "-p $PORT -k $DIR -c listen_addresses=localhost" -w start >/dev/null
+    "$BIN/pg_ctl" -D "$DIR" status >/dev/null 2>&1 || "$BIN/pg_ctl" -D "$DIR" -l "$DIR/server.log" -o "-p $PORT -k $DIR -c listen_addresses=localhost -c timezone=UTC" -w start >/dev/null
     "$BIN/psql" -h localhost -p "$PORT" -U misk -d postgres -Atc "select 1 from pg_database where datname='$DB'" | grep -q 1 \
       || "$BIN/createdb" -h localhost -p "$PORT" -U misk "$DB"
     echo "postgresql://misk@localhost:$PORT/$DB"

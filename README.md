@@ -54,3 +54,17 @@ The storefront reads the catalogue from Postgres (`lib/data/index.ts`). Orders a
 Sign-in is verified on the server (`lib/server/auth.ts`): phone OTP, email + password (argon2id) and password reset. Sessions are opaque httpOnly cookies backed by the `auth_sessions` table. Guest orders made in a browser are attached to the account when the customer signs in.
 
 Set `AUTH_SECRET` in `.env` (see `.env.example`). SMS and email use the `console` provider in development, which prints the OTP or reset link to the server log. Production needs real providers in `lib/server/notify.ts`; the console provider refuses to run there. Google sign-in is not built yet (needs OAuth credentials).
+
+## Admin panel
+
+Lives at `/admin` with its own staff accounts, cookie and layout. Staff can manage orders (status flow, restock on cancel or return), products, discounts and, for the owner, other staff. Changes to products and discounts update the public shop immediately.
+
+Create the first account (it prints a one-time password you must change at first sign-in):
+
+```bash
+npm run admin:create -- owner "Your Name" owner
+```
+
+Sessions end after 15 minutes without activity, accounts lock after repeated wrong passwords, and every change is recorded in `audit_log`. Every mutation re-checks the staff role on the server (`assertStaff` in `lib/server/staff-session.ts`); hiding a menu item is cosmetic.
+
+Keep the database timezone on UTC (managed hosts do by default). `scripts/db-dev.sh` already starts the local database that way.

@@ -17,6 +17,11 @@ enum CustomerStatus {
   blocked
 }
 
+enum StaffRole {
+  owner
+  admin
+}
+
 enum OtpPurpose {
   login
   reset
@@ -182,22 +187,22 @@ model Discount {
 // ───────── Customers ─────────
 
 model Customer {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String            @default("") @db.VarChar(80)
-  phone           String?           @unique @db.VarChar(20) // E.164, e.g. +8801712345678
-  email           String?           @unique @db.VarChar(120) // store lowercased
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String               @default("") @db.VarChar(80)
+  phone           String?              @unique @db.VarChar(20) // E.164, e.g. +8801712345678
+  email           String?              @unique @db.VarChar(120) // store lowercased
   passwordHash    String? // argon2id; null for phone-only or Google accounts
-  googleSub       String?           @unique
-  phoneVerifiedAt DateTime?         @db.Timestamptz
-  emailVerifiedAt DateTime?         @db.Timestamptz
-  status          CustomerStatus    @default(active)
-  lastLoginAt     DateTime?         @db.Timestamptz
+  googleSub       String?              @unique
+  phoneVerifiedAt DateTime?            @db.Timestamptz
+  emailVerifiedAt DateTime?            @db.Timestamptz
+  status          CustomerStatus       @default(active)
+  lastLoginAt     DateTime?            @db.Timestamptz
   addresses       CustomerAddress[]
   orders          Order[]
   sessions        AuthSession[]
   resetTokens     PasswordResetToken[]
-  createdAt       DateTime          @default(now()) @db.Timestamptz
-  updatedAt       DateTime          @updatedAt @db.Timestamptz
+  createdAt       DateTime             @default(now()) @db.Timestamptz
+  updatedAt       DateTime             @updatedAt @db.Timestamptz
 
   @@map("customers")
 }
@@ -375,4 +380,54 @@ model Payment {
   @@unique([method, providerRef]) // makes webhook retries idempotent
   @@index([orderId])
   @@map("payments")
+}
+
+// ───────── Staff ─────────
+
+model StaffAccount {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username           String         @unique @db.VarChar(32) // lowercase, ^[a-z0-9._-]{3,32}$
+  name               String         @db.VarChar(80)
+  role               StaffRole      @default(admin)
+  passwordHash       String
+  mustChangePassword Boolean        @default(true)
+  active             Boolean        @default(true)
+  failedAttempts     Int            @default(0)
+  lockedUntil        DateTime?      @db.Timestamptz
+  lastLoginAt        DateTime?      @db.Timestamptz
+  sessions           StaffSession[]
+  createdAt          DateTime       @default(now()) @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @db.Timestamptz
+
+  @@map("staff_accounts")
+}
+
+model StaffSession {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staffId    String       @db.Uuid
+  staff      StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tokenHash  String       @unique
+  createdAt  DateTime     @default(now()) @db.Timestamptz
+  lastSeenAt DateTime     @default(now()) @db.Timestamptz
+  expiresAt  DateTime     @db.Timestamptz
+  revokedAt  DateTime?    @db.Timestamptz
+
+  @@index([staffId])
+  @@map("staff_sessions")
+}
+
+// Append-only record of what staff changed. Never updated or deleted by the app.
+model AuditLog {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staffId  String?  @db.Uuid
+  username String   @db.VarChar(32)
+  action   String   @db.VarChar(60) // e.g. product.update, order.status
+  entity   String   @db.VarChar(40)
+  entityId String   @db.VarChar(80)
+  detail   Json?
+  at       DateTime @default(now()) @db.Timestamptz
+
+  @@index([entity, entityId])
+  @@index([at])
+  @@map("audit_log")
 }

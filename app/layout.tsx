@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Poppins } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/site/Header";
-import { Footer } from "@/components/site/Footer";
-import { CartProvider } from "@/components/cart/CartProvider";
-import { getSiteContent } from "@/lib/data";
 
 const bodoni = Bodoni_Moda({
   variable: "--font-bodoni",
@@ -29,16 +25,12 @@ export const metadata: Metadata = {
 // Applies the saved day/night mode before first paint to avoid a flash.
 const modeScript = `try{if(localStorage.getItem("misk_mode")==="day")document.body.dataset.lux="day"}catch(e){}`;
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const content = await getSiteContent();
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${bodoni.variable} ${poppins.variable}`}>
       <body data-lux="oxblood" className="lux-shell min-h-screen" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: modeScript }} />
-        <Header />
-        <main>{children}</main>
-        <Footer content={content.footer} />
-        <CartProvider />
+        {children}
       </body>
     </html>
   );
