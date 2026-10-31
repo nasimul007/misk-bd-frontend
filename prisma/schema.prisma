@@ -1,0 +1,348 @@
+// MISK BD database. Source of truth for the shape is MISK-BD-Backend-Specification.docx §4.2.
+// Money is stored as whole BDT (Int). Timestamps are UTC.
+// Deliberately not here yet: staff accounts, auth sessions, audit log, media assets, reviews, site content
+// blocks and geo reference tables. They arrive with the admin panel; geo stays in lib/data/geo.ts for now.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CustomerStatus {
+  active
+  blocked
+}
+
+enum OtpPurpose {
+  login
+  reset
+}
+
+enum DiscountScope {
+  product
+  category
+  all
+}
+
+enum DiscountType {
+  percent
+  fixed
+}
+
+enum ShipKind {
+  bd
+  intl
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  packed
+  shipped
+  delivered
+  returned
+  cancelled
+}
+
+enum PaymentMethod {
+  bkash
+  sslcommerz
+  cod
+  stripe
+  paypal
+}
+
+enum PaymentStatus {
+  unpaid
+  pending
+  paid
+  failed
+  refunded
+  cod_pending
+  cod_collected
+}
+
+// ───────── Catalogue ─────────
+
+model Section {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String       @unique @db.VarChar(60)
+  name        String       @db.VarChar(60)
+  blurb       String       @default("") @db.VarChar(160)
+  image       String       @default("") // path or CDN URL until media assets exist
+  visible     Boolean      @default(true)
+  showSpecs   Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  subsections Subsection[]
+  products    Product[]
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @db.Timestamptz
+
+  @@map("sections")
+}
+
+model Subsection {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId String    @db.Uuid
+  section   Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  slug      String    @db.VarChar(60)
+  name      String    @db.VarChar(60)
+  sortOrder Int       @default(0)
+  products  Product[]
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([sectionId, slug])
+  @@map("subsections")
+}
+
+model Product {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String           @unique @db.VarChar(120)
+  skuNo         Int              @unique @default(autoincrement()) // shown as MB-####
+  title         String           @db.VarChar(120)
+  titleAr       String?          @db.VarChar(120)
+  description   String           @default("")
+  category      String           @db.VarChar(60)
+  scentFamily   String?          @db.VarChar(60)
+  sectionId     String?          @db.Uuid
+  section       Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  subsectionId  String?          @db.Uuid
+  subsection    Subsection?      @relation(fields: [subsectionId], references: [id], onDelete: SetNull)
+  stock         Int              @default(0)
+  bestseller    Boolean          @default(false)
+  active        Boolean          @default(true)
+  tags          String[]
+  ratingAvg     Decimal          @default(0) @db.Decimal(2, 1)
+  reviewCount   Int              @default(0)
+  soldCount     Int              @default(0)
+  lastingHours  Int?             @db.SmallInt
+  projection    String?          @db.VarChar(60)
+  concentration String?          @db.VarChar(60)
+  origin        String?          @db.VarChar(120)
+  variants      ProductVariant[]
+  images        ProductImage[]
+  discounts     Discount[]
+  orderItems    OrderItem[]
+  archivedAt    DateTime?        @db.Timestamptz
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @db.Timestamptz
+
+  @@index([active, category])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String   @db.VarChar(12) // 1ml, 3ml, 6ml, 12ml, Standard
+  priceBdt  Int // list price; CHECK (price_bdt > 0) lives in the migration
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@unique([productId, size])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String  @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String // path or CDN URL until media assets exist
+  position  Int     @default(0) @db.SmallInt // 0 = primary, 1 = hover
+
+  @@unique([productId, position])
+  @@map("product_images")
+}
+
+model Discount {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String        @db.VarChar(80)
+  scope           DiscountScope
+  targetProductId String?       @db.Uuid
+  targetProduct   Product?      @relation(fields: [targetProductId], references: [id], onDelete: Cascade)
+  targetCategory  String?       @db.VarChar(120)
+  type            DiscountType
+  value           Decimal       @db.Decimal(10, 2)
+  sizes           String[] // empty = all sizes
+  startsOn        DateTime?     @db.Date
+  endsOn          DateTime?     @db.Date
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @db.Timestamptz
+
+  @@map("discounts")
+}
+
+// ───────── Customers ─────────
+
+model Customer {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String            @default("") @db.VarChar(80)
+  phone           String?           @unique @db.VarChar(20) // E.164, e.g. +8801712345678
+  email           String?           @unique @db.VarChar(120) // store lowercased
+  passwordHash    String? // argon2id; null for phone-only or Google accounts
+  googleSub       String?           @unique
+  phoneVerifiedAt DateTime?         @db.Timestamptz
+  emailVerifiedAt DateTime?         @db.Timestamptz
+  status          CustomerStatus    @default(active)
+  lastLoginAt     DateTime?         @db.Timestamptz
+  addresses       CustomerAddress[]
+  orders          Order[]
+  createdAt       DateTime          @default(now()) @db.Timestamptz
+  updatedAt       DateTime          @updatedAt @db.Timestamptz
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId    String   @db.Uuid
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label         String   @default("Address") @db.VarChar(40)
+  isDefault     Boolean  @default(false) // one default per customer: partial unique index in the migration
+  kind          ShipKind @default(bd)
+  recipientName String   @default("") @db.VarChar(80)
+  phone         String   @default("") @db.VarChar(20)
+  division      String?  @db.VarChar(60)
+  district      String?  @db.VarChar(60)
+  upazila       String?  @db.VarChar(60)
+  country       String?  @db.VarChar(80)
+  region        String?  @db.VarChar(80)
+  city          String?  @db.VarChar(80)
+  postalCode    String?  @db.VarChar(20)
+  street        String   @db.VarChar(255)
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+model OtpCode {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone      String     @db.VarChar(20)
+  codeHash   String // never the code itself
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @db.Timestamptz
+  consumedAt DateTime?  @db.Timestamptz
+  createdAt  DateTime   @default(now()) @db.Timestamptz
+
+  @@index([phone, createdAt])
+  @@map("otp_codes")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId String    @db.Uuid
+  tokenHash  String    @unique // hash of a 32-byte random token
+  expiresAt  DateTime  @db.Timestamptz
+  usedAt     DateTime? @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  @@map("password_reset_tokens")
+}
+
+// ───────── Orders ─────────
+
+model Order {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number         Int                  @unique @default(autoincrement()) // public order no. is MB-(10000 + number)
+  customerId     String?              @db.Uuid // null for guest orders
+  customer       Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  guestTokenHash String? // hash of the token the guest browser keeps; the order number alone must never grant access
+  status         OrderStatus          @default(pending)
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus        @default(unpaid)
+  currency       String               @default("BDT") @db.Char(3)
+  fxRate         Decimal?             @db.Decimal(12, 6)
+  subtotalList   Int // list prices x qty
+  discountTotal  Int
+  subtotal       Int // after discounts
+  shippingFee    Int
+  vatAmount      Int // informational (tax-inclusive)
+  total          Int // subtotal + shippingFee
+  contactName    String               @db.VarChar(80)
+  contactPhone   String               @db.VarChar(20)
+  contactEmail   String?              @db.VarChar(120)
+  shipKind       ShipKind
+  shipDivision   String?              @db.VarChar(60)
+  shipDistrict   String?              @db.VarChar(60)
+  shipUpazila    String?              @db.VarChar(60)
+  shipCountry    String?              @db.VarChar(80)
+  shipRegion     String?              @db.VarChar(80)
+  shipCity       String?              @db.VarChar(80)
+  shipPostal     String?              @db.VarChar(20)
+  shipStreet     String               @db.VarChar(255)
+  etaText        String               @default("") @db.VarChar(40)
+  items          OrderItem[]
+  history        OrderStatusHistory[]
+  payments       Payment[]
+  confirmedAt    DateTime?            @db.Timestamptz
+  shippedAt      DateTime?            @db.Timestamptz
+  deliveredAt    DateTime?            @db.Timestamptz
+  cancelledAt    DateTime?            @db.Timestamptz
+  createdAt      DateTime             @default(now()) @db.Timestamptz
+  updatedAt      DateTime             @updatedAt @db.Timestamptz
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+// Snapshot of what was bought, so history survives later edits to the product.
+model OrderItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String   @db.Uuid
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?  @db.Uuid
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  slug      String   @db.VarChar(120)
+  title     String   @db.VarChar(120)
+  image     String   @default("")
+  size      String   @db.VarChar(12)
+  qty       Int
+  unitList  Int // list price per unit
+  unitPrice Int // price per unit after discounts
+  discount  String?  @db.VarChar(80) // name of the rule that applied
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String      @db.Uuid
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?
+  actorId   String?     @db.Uuid // staff id; null when the system or the customer acted
+  createdAt DateTime    @default(now()) @db.Timestamptz
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model Payment {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId     String        @db.Uuid
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method      PaymentMethod
+  status      PaymentStatus @default(pending)
+  amount      Int
+  currency    String        @default("BDT") @db.Char(3)
+  providerRef String? // bKash paymentID, SSLCommerz tran_id, Stripe payment_intent...
+  raw         Json? // provider payload, redacted of secrets
+  createdAt   DateTime      @default(now()) @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @db.Timestamptz
+
+  @@unique([method, providerRef]) // makes webhook retries idempotent
+  @@index([orderId])
+  @@map("payments")
+}

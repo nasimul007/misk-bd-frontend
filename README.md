@@ -34,3 +34,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Local database
+
+Postgres 17 + Prisma. No Docker needed; `scripts/db-dev.sh` runs a private Postgres on port 5433 (data in `~/.local/share/misk-bd-pg`).
+
+```bash
+cp .env.example .env     # once
+npm run db:start         # start Postgres and create the misk_bd database
+npm run db:migrate       # apply migrations
+npm run db:seed          # load the prototype catalogue (safe to re-run)
+npm run db:studio        # browse the data
+```
+
+The site still reads `lib/data/seed.ts`; switching `lib/data/index.ts` to Prisma is the next step.
