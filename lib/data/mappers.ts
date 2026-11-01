@@ -32,8 +32,11 @@ export const toDiscount = (d: DiscountRow): Discount => ({
   active: d.active,
 });
 
+/** Shown for a product that has no photo yet, so a card never renders an empty image address. */
+export const PLACEHOLDER_IMAGE = "/images/placeholder.svg";
+
 export const toProduct = (p: ProductRow): Product => {
-  const gallery = p.images.map((i) => i.url);
+  const gallery = p.images.length ? p.images.map((i) => i.url) : [PLACEHOLDER_IMAGE];
   const prices = p.variants.map((v) => v.priceBdt);
   return {
     id: p.slug,
