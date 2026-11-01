@@ -30,12 +30,14 @@ export async function getSiteContent(): Promise<SiteContent> {
     include: { subsections: { orderBy: { sortOrder: "asc" } } },
     orderBy: { sortOrder: "asc" },
   });
+  const counts = await db.product.groupBy({ by: ["sectionId"], where: { active: true, sectionId: { not: null } }, _count: true });
   const sections: Section[] = rows.map((s) => ({
     id: s.slug,
     name: s.name,
     blurb: s.blurb,
     image: s.image,
     showSpecs: s.showSpecs,
+    count: counts.find((c) => c.sectionId === s.id)?._count ?? 0,
     children: s.subsections.map((c) => ({ id: c.slug, name: c.name })),
   }));
 

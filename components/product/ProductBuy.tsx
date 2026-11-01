@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Minus, Plus, ShoppingBag, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,7 +10,7 @@ import { useCart } from "@/lib/cart";
 import type { PricedProduct } from "@/lib/types";
 
 /** Price, size picker, quantity stepper and add-to-cart. */
-export function ProductBuy({ product }: { product: PricedProduct }) {
+export function ProductBuy({ product, intro }: { product: PricedProduct; intro?: ReactNode }) {
   const money = useMoney();
   const { title, stock, card, sizes } = product;
   const add = useCart((s) => s.add);
@@ -41,6 +41,8 @@ export function ProductBuy({ product }: { product: PricedProduct }) {
         <p className="flex items-center gap-2" style={{ margin: 0, fontSize: 14, color: "var(--lux-success)" }}><Tag size={15} /> {info.rule.name} &mdash; you save {money(info.saving * qty)}</p>
       )}
 
+      {intro}
+
       <div className="glass-card flex flex-col gap-5" style={{ borderRadius: 16, padding: 24 }}>
         <div className="flex flex-col gap-3">
           <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>Size</span>
@@ -50,7 +52,7 @@ export function ProductBuy({ product }: { product: PricedProduct }) {
               return (
                 <button key={s.size} type="button" onClick={() => setSize(s.size)} aria-pressed={on} aria-label={`${s.size}, ${money(s.price)}`} className="flex flex-col items-center gap-0.5" style={{ minWidth: 78, borderRadius: 12, padding: "9px 14px", cursor: "pointer", transition: "all .2s", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink)" }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{s.size}</span>
-                  <span style={{ fontSize: 12, color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }}>{money(s.price)}</span>
+                  <span style={{ fontSize: 12, color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }}>{money(s.price)}{s.original > s.price && <s style={{ marginLeft: 6, fontSize: 10.5, opacity: 0.7 }}>{money(s.original)}</s>}</span>
                 </button>
               );
             })}

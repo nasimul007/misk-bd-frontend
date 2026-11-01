@@ -225,7 +225,7 @@ export function CheckoutForm() {
         </div>
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
         {t.savings > 0 && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--lux-success)", textAlign: "right" }}>You save {money(t.savings)} on this order</p>}
-        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : f.pay === "sslcommerz" ? "Continue to payment" : "Place order"}</button>
+        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : f.pay === "sslcommerz" ? "Continue to payment" : "Place Order"}</button>
         {notice && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13, color: "var(--lux-warning)", textAlign: "center" }}>{notice}</p>}
         {touched && !ok && <p role="alert" style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-warning)", textAlign: "center" }}>Please fix the highlighted fields.</p>}
         <p className="flex items-center justify-center gap-1.5" style={{ fontSize: 12, color: "var(--lux-ink-muted)", textAlign: "center", marginTop: 12 }}><Lock size={12} /> Secure checkout</p>

@@ -4,8 +4,8 @@ import { setCurrency, useCurrency } from "@/lib/currency";
 import type { Currency } from "@/lib/format";
 
 const options: { id: Currency; label: string; name: string }[] = [
-  { id: "BDT", label: "৳", name: "Bangladeshi Taka" },
-  { id: "USD", label: "$", name: "US Dollar" },
+  { id: "BDT", label: "BDT", name: "Bangladeshi Taka" },
+  { id: "USD", label: "USD", name: "US Dollar" },
 ];
 
 /** BDT / USD display switch. The charged amount is always BDT. */
@@ -23,7 +23,7 @@ export function CurrencyToggle() {
             aria-label={`Show prices in ${o.name}`}
             onClick={() => setCurrency(o.id)}
             className="lux-focus"
-            style={{ width: 28, height: 26, borderRadius: 999, border: 0, cursor: "pointer", fontSize: 13, fontWeight: 600, background: on ? "var(--lux-gold)" : "transparent", color: on ? "var(--lux-bg)" : "var(--lux-ink-muted)", transition: "background var(--dur-mid) var(--ease-lux)" }}
+            style={{ height: 26, padding: "0 9px", borderRadius: 999, border: 0, cursor: "pointer", fontSize: 12, letterSpacing: "0.05em", fontWeight: 600, background: on ? "var(--lux-gold)" : "transparent", color: on ? "var(--lux-bg)" : "var(--lux-ink-muted)", transition: "background var(--dur-mid) var(--ease-lux)" }}
           >
             {o.label}
           </button>

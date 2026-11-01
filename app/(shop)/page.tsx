@@ -61,8 +61,9 @@ export default async function HomePage() {
             {sections.map((s) => (
               <div key={s.id} className="lux-surface" style={{ borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <Link href={`/shop?section=${s.id}`} aria-label={`Browse ${s.name}`} style={{ position: "relative", display: "block", aspectRatio: "16/10", overflow: "hidden", background: "var(--lux-bg-3)" }}>
-                  <Image src={s.image} alt="" fill sizes="(max-width: 768px) 100vw, 33vw" style={{ objectFit: "cover" }} />
+                  {s.image && <Image src={s.image} alt="" fill sizes="(max-width: 768px) 100vw, 33vw" style={{ objectFit: "cover" }} />}
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 45%, var(--lux-scrim) 100%)" }} />
+                  <span className="lux-glass" style={{ position: "absolute", top: 12, right: 12, padding: "4px 12px", borderRadius: 999, fontSize: 12, color: "var(--lux-ink)" }}>{s.count ? `${s.count} item${s.count === 1 ? "" : "s"}` : "Coming soon"}</span>
                 </Link>
                 <div style={{ padding: "18px 20px 20px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
                   <Link href={`/shop?section=${s.id}`} className="font-display flex items-center justify-between gap-2" style={{ color: "var(--lux-ink)", fontSize: 20, textDecoration: "none" }}>{s.name}<span style={{ color: "var(--lux-gold)" }}>&rarr;</span></Link>

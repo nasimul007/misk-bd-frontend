@@ -68,8 +68,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
             </div>
           </div>
 
-          <ProductBuy product={product} />
-          <p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--lux-ink-muted)", margin: 0 }}>{product.description}</p>
+          <ProductBuy product={product} intro={<p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--lux-ink-muted)", margin: 0 }}>{product.description}</p>} />
 
           <div className="lux-glass lux-glass--gold flex items-start gap-3.5" style={{ borderRadius: 16, padding: "18px 20px" }}>
             <span style={{ color: "var(--lux-gold)", flex: "none", marginTop: 2 }}><ShieldCheck size={22} /></span>

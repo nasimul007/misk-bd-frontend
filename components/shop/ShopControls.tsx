@@ -26,7 +26,8 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
   const [, startTransition] = useTransition();
   const [draft, setDraft] = useState(query.q);
   const [maxDraft, setMaxDraft] = useState(query.max ?? bounds.hi);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false); // phone: the rail is closed until opened
+  const [railHidden, setRailHidden] = useState(false); // desktop: the rail is open until hidden
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -125,13 +126,15 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
           )}
         </div>
 
-        <button type="button" className="lux-glass lux-focus flex h-12 items-center gap-2 rounded-full px-5 lg:hidden" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} style={{ color: "var(--lux-ink)", cursor: "pointer" }}>
-          <SlidersHorizontal size={17} /> <span>{filtersOpen ? "Hide" : "Filters"}</span>
+        <button type="button" className="lux-glass lux-focus flex h-12 items-center gap-2 rounded-full px-5" onClick={() => (window.matchMedia("(min-width: 1024px)").matches ? setRailHidden((o) => !o) : setFiltersOpen((o) => !o))} aria-expanded={filtersOpen} style={{ color: "var(--lux-ink)", cursor: "pointer" }}>
+          <SlidersHorizontal size={17} />
+          <span className="lg:hidden">{filtersOpen ? "Hide" : "Filters"}</span>
+          <span className="hidden lg:inline">{railHidden ? "Filters" : "Hide"}</span>
         </button>
       </div>
 
-      <div className="mt-6 grid items-start gap-5 lg:grid-cols-[232px_1fr] lg:gap-7">
-      <aside className={`lux-surface flex-col gap-6 p-[22px] lg:sticky lg:top-24 lg:flex ${filtersOpen ? "flex" : "hidden"}`} style={{ borderRadius: 18 }} aria-label="Filters">
+      <div className={`mt-6 grid items-start gap-5 lg:gap-7 ${railHidden ? "" : "lg:grid-cols-[232px_1fr]"}`}>
+      <aside className={`lux-surface flex-col gap-6 p-[22px] lg:sticky lg:top-24 ${filtersOpen ? "flex" : "hidden"} ${railHidden ? "lg:hidden" : "lg:flex"}`} style={{ borderRadius: 18 }} aria-label="Filters">
         <div>
           <div style={label}>Price by size</div>
           <div role="group" aria-label="Size for price filter" className="mb-3.5 grid grid-cols-3 gap-1.5">
