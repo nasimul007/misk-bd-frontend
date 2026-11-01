@@ -107,7 +107,7 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
 
 // ───────── Products ─────────
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"];
+const SIZES = ["1ml", "3ml", "6ml", "12ml"];
 export type ProductInput = {
   slug: string | null;
   title: string; titleAr: string; description: string; category: string; scentFamily: string; sectionSlug: string; subsectionSlug: string;

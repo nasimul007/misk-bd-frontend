@@ -146,7 +146,7 @@ model ProductVariant {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   productId String   @db.Uuid
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size      String   @db.VarChar(12) // 1ml, 3ml, 6ml, 12ml, Standard
+  size      String   @db.VarChar(12) // 1ml, 3ml, 6ml, 12ml
   priceBdt  Int // list price; CHECK (price_bdt > 0) lives in the migration
   createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz

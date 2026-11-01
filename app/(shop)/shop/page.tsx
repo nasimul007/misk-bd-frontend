@@ -51,7 +51,7 @@ async function Shop({ searchParams }: { searchParams: PageProps<"/shop">["search
       {query.best && title("Maison Selections", "Best Sellers", "The scents our patrons return to — our most-loved fragrances, gathered in one place.")}
       {!query.best && activeSec && title(activeSub ? activeSec.name : "Collection", activeSub ? activeSub.name : activeSec.name, activeSub ? undefined : activeSec.blurb)}
 
-      <ShopControls query={query} sections={sections} bounds={bounds} hasSale={all.some((p) => p.onSale)} hasStandard={all.some((p) => p.variants.some((v) => v.size === "Standard"))}>
+      <ShopControls query={query} sections={sections} bounds={bounds} hasSale={all.some((p) => p.onSale)}>
         <div style={{ paddingBottom: 16, fontSize: 14, color: "var(--lux-ink-muted)" }} aria-live="polite">
           <span style={{ color: "var(--lux-ink)", fontWeight: 600 }}>{list.length}</span> product{list.length !== 1 ? "s" : ""}
         </div>

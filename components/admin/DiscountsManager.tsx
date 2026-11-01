@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/checkout/Field";
 import { deleteDiscountAction, saveDiscountAction } from "@/app/actions/admin";
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"];
+const SIZES = ["1ml", "3ml", "6ml", "12ml"];
 
 export type DiscountRow = {
   id: string; name: string; scope: "product" | "category" | "all"; target: string; targetLabel: string;

@@ -8,7 +8,7 @@ import { Field, ariaFor } from "@/components/checkout/Field";
 import { ImageField } from "@/components/admin/ImageField";
 import { saveProductAction, type ProductInput } from "@/app/actions/admin";
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"];
+const SIZES = ["1ml", "3ml", "6ml", "12ml"];
 
 export type ProductFormData = Omit<ProductInput, "variants"> & { variants: { size: string; price: string }[] };
 

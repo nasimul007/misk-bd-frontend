@@ -15,12 +15,11 @@ type Props = {
   sections: Section[];
   bounds: { lo: number; hi: number };
   hasSale: boolean;
-  hasStandard: boolean; // some product is sold in a single "Standard" size
   children: ReactNode; // the results, rendered on the server
 };
 
 /** Search, sort, chips and the filter rail. All state lives in the URL, so every view is shareable. */
-export function ShopControls({ query, sections, bounds, hasSale, hasStandard, children }: Props) {
+export function ShopControls({ query, sections, bounds, hasSale, children }: Props) {
   const money = useMoney();
   const router = useRouter();
   const pathname = usePathname();
@@ -144,9 +143,8 @@ export function ShopControls({ query, sections, bounds, hasSale, hasStandard, ch
         <div>
           <div style={label}>Price by size</div>
           <div role="group" aria-label="Size for price filter" className="mb-3.5 grid grid-cols-3 gap-1.5">
-            {["", ...SIZES.filter((sz) => sz !== "Standard" || hasStandard)].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={pill(query.size === sz)}>{sz || "All"}</button>)}
+            {["", ...SIZES].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={pill(query.size === sz)}>{sz || "All"}</button>)}
           </div>
-          {hasStandard && <p style={{ margin: "-4px 0 12px", fontSize: 11.5, lineHeight: 1.5, color: "var(--lux-ink-muted)" }}>Standard: items sold in one size, with no ml option.</p>}
           <input
             type="range"
             aria-label={query.size ? `Maximum price for ${query.size}` : "Maximum starting price"}

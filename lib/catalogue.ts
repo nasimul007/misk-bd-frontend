@@ -2,7 +2,7 @@ import type { PricedProduct, Section } from "@/lib/types";
 
 export const CATEGORIES = ["Men's Perfume", "Women's Perfume", "Unisex", "Cologne", "Premium"] as const;
 export const FAMILIES = ["Oud & Amber", "Rose & Musk", "Woods & Incense", "Citrus & Leather", "White Florals"] as const;
-export const SIZES = ["1ml", "3ml", "6ml", "12ml", "Standard"] as const;
+export const SIZES = ["1ml", "3ml", "6ml", "12ml"] as const;
 export const SORTS = [
   { v: "popular", label: "Popularity", hint: "Most reviewed first" },
   { v: "newest", label: "Newest", hint: "Latest arrivals" },
