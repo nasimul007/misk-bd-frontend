@@ -75,3 +75,20 @@ Sessions end after 15 minutes without activity, accounts lock after repeated wro
 Image uploads are re-encoded (WebP, max 1600px) and stored by `lib/server/storage.ts`. The `local` provider writes to `public/uploads` and is for development only; production needs an object-storage provider added there.
 
 Keep the database timezone on UTC (managed hosts do by default). `scripts/db-dev.sh` already starts the local database that way.
+
+## Online payment (SSLCommerz)
+
+Card and mobile banking checkout runs through SSLCommerz's hosted page. Bangladeshi shoppers who pick it are sent to the gateway after the order is saved; the order and its stock are held for 30 minutes.
+
+Set these in `.env` (see `.env.example`). With the store id empty, the method is switched off and checkout refuses it.
+
+| Variable | Notes |
+| --- | --- |
+| `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD` | Sandbox keys from the SSLCommerz developer sandbox; live keys for production |
+| `SSLCOMMERZ_MODE` | `sandbox` (default) or `live` |
+| `APP_URL` | Public https address. SSLCommerz calls `/api/pay/sslcommerz/{success,fail,cancel,ipn}` on it, so `localhost` cannot receive them: use your tunnel URL when testing |
+| `CRON_SECRET` | 16+ random characters. Protects `/api/cron/expire-orders` |
+
+How it stays safe: the browser return and the IPN are only hints. A payment counts once SSLCommerz's validation service confirms it, the amount and currency match the order, and the order row is locked while it is applied, so repeats are harmless. Unpaid orders are cancelled and their stock released after the hold; run `GET /api/cron/expire-orders` with `Authorization: Bearer $CRON_SECRET` every 5 minutes (Vercel Cron does this). Checkout also sweeps expired orders before each new order.
+
+Going live: set live credentials and `SSLCOMMERZ_MODE="live"`, set `APP_URL` to the production domain, register the IPN address `https://<domain>/api/pay/sslcommerz/ipn` in the SSLCommerz merchant panel, then place one small real order. Refunds are made in the SSLCommerz panel for now.

@@ -66,6 +66,10 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
       const order = await tx.order.findUniqueOrThrow({ where: { id: locked[0].id }, include: { items: true } });
       if (!NEXT[order.status].includes(to)) return { ok: false, error: `An order that is ${order.status} can't become ${to}.` };
 
+      if (to === "confirmed" && order.paymentMethod === "sslcommerz" && order.paymentStatus !== "paid") {
+        return { ok: false, error: "This order is waiting for its online payment. Confirm it once the payment arrives." };
+      }
+
       const now = new Date();
       const data: Prisma.OrderUpdateInput = { status: to };
       if (to === "confirmed") data.confirmedAt = now;

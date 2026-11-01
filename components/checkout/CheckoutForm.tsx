@@ -60,7 +60,9 @@ export function CheckoutForm() {
       if (res.ok) {
         orderTokens.remember(res.orderNo, res.token);
         clear();
-        router.push(`/order/${res.orderNo}`);
+        // Online payment continues on the gateway's own page; the order is already saved and held for us.
+        if (res.redirectUrl) window.location.assign(res.redirectUrl);
+        else router.push(`/order/${res.orderNo}`);
         return;
       }
       if ("fresh" in res) sync(res.fresh);
@@ -189,7 +191,11 @@ export function CheckoutForm() {
             })}
           </div>
           {err("pay") && <p role="alert" style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-warning)" }}>{err("pay")}</p>}
-          <p style={{ margin: "14px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Payments are simulated for now &mdash; no money is taken and nothing is sent to a payment provider.</p>
+          <p style={{ margin: "14px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>
+            {f.pay === "sslcommerz"
+              ? "You'll be taken to SSLCommerz's secure page to pay. We hold your order and stock for 30 minutes while you do."
+              : "This payment method is simulated for now — no money is taken and nothing is sent to a payment provider."}
+          </p>
         </section>
       </div>
 
@@ -219,7 +225,7 @@ export function CheckoutForm() {
         </div>
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
         {t.savings > 0 && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--lux-success)", textAlign: "right" }}>You save {money(t.savings)} on this order</p>}
-        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : "Place order"}</button>
+        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : f.pay === "sslcommerz" ? "Continue to payment" : "Place order"}</button>
         {notice && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13, color: "var(--lux-warning)", textAlign: "center" }}>{notice}</p>}
         {touched && !ok && <p role="alert" style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-warning)", textAlign: "center" }}>Please fix the highlighted fields.</p>}
         <p className="flex items-center justify-center gap-1.5" style={{ fontSize: 12, color: "var(--lux-ink-muted)", textAlign: "center", marginTop: 12 }}><Lock size={12} /> Secure checkout</p>

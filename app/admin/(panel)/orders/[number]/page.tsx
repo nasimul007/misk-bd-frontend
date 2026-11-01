@@ -16,7 +16,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
   if (n === null) notFound();
   const o = await db.order.findUnique({
     where: { number: n },
-    include: { items: true, history: { orderBy: { createdAt: "desc" } }, customer: { select: { name: true, phone: true, email: true } } },
+    include: { items: true, payments: { orderBy: { createdAt: "desc" } }, history: { orderBy: { createdAt: "desc" } }, customer: { select: { name: true, phone: true, email: true } } },
   });
   if (!o) notFound();
 
@@ -89,6 +89,8 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
             {row("Method", o.paymentMethod)}
             {row("Status", o.paymentStatus.replace("_", " "))}
             {row("Placed", dateTime(o.createdAt))}
+            {o.paymentDueAt && o.paymentStatus !== "paid" && row("Pay by", dateTime(o.paymentDueAt))}
+            {o.payments.filter((p) => p.providerRef).map((p) => row(`Attempt ${p.providerRef}`, p.status + (p.raw && typeof p.raw === "object" && "bank_tran_id" in p.raw ? ` · ${String((p.raw as Record<string, unknown>).bank_tran_id)}` : "")))}
           </Panel>
         </div>
       </div>

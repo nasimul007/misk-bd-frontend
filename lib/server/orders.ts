@@ -14,7 +14,7 @@ export type OrderLineInput = { slug: string; size: string; qty: number };
 export type PlaceOrderInput = { lines: OrderLineInput[]; form: CheckoutForm; expectedTotal: number };
 
 export type PlaceOrderResult =
-  | { ok: true; orderNo: string; token: string }
+  | { ok: true; orderNo: string; token: string; redirectUrl?: string; payError?: string }
   | { ok: false; code: "invalid"; message: string; errors?: FormErrors }
   | { ok: false; code: "unavailable" | "stock"; message: string; fresh: FreshLine[] }
   | { ok: false; code: "price_changed"; message: string; fresh: FreshLine[] };
@@ -187,6 +187,8 @@ function toOrder(o: OrderRow): Order {
     items: o.items.map((i) => ({ key: `${i.slug}__${i.size}`, id: i.slug, title: i.title, image: i.image, size: i.size, price: i.unitPrice, original: i.unitList, qty: i.qty, stock: 0 })),
     totals: { listTotal: o.subtotalList, subtotal: o.subtotal, savings: o.discountTotal, shipping: o.shippingFee, vat: o.vatAmount, total: o.total },
     pay: o.paymentMethod,
+    payStatus: o.paymentStatus,
+    payDueAt: o.paymentDueAt ? o.paymentDueAt.toISOString() : null,
     status: o.status,
     intl,
     name: o.contactName,
@@ -206,6 +208,15 @@ const tokenMatches = (stored: string | null, token: string) => {
   const b = Buffer.from(hash(token), "hex");
   return a.length === b.length && timingSafeEqual(a, b);
 };
+
+/** The order row, but only for someone who can prove it is theirs: its owner, or the holder of its guest token. */
+export async function findOrderFor(no: string, token: string, customerId?: string) {
+  const n = parseOrderNo(no);
+  if (n === null) return null;
+  const row = await db.order.findUnique({ where: { number: n } });
+  if (!row) return null;
+  return (customerId && row.customerId === customerId) || (token && tokenMatches(row.guestTokenHash, token)) ? row : null;
+}
 
 type Ref = { no: string; token: string };
 const cleanRefs = (refs: Ref[]) =>
