@@ -233,6 +233,24 @@ export async function setProductActiveAction(slug: unknown, active: unknown): Pr
   });
 }
 
+/** Removes a product for good. Past orders keep their own copy of what was bought, so history is unaffected. */
+export async function deleteProductAction(slug: unknown): Promise<Result> {
+  return guarded("owner", async (s) => {
+    const key = text(slug, 120);
+    if (!key) return { ok: false, error: "That change isn't valid." };
+    const done = await db.$transaction(async (tx) => {
+      const p = await tx.product.findUnique({ where: { slug: key }, select: { id: true, title: true, _count: { select: { orderItems: true } } } });
+      if (!p) return null;
+      await tx.product.delete({ where: { id: p.id } });
+      await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: "product.delete", entity: "product", entityId: key, detail: { title: p.title, orderLines: p._count.orderItems } } });
+      return p;
+    });
+    if (!done) return { ok: false, error: "Product not found." };
+    updateTag("catalogue");
+    return { ok: true };
+  });
+}
+
 // ───────── Discounts ─────────
 
 export type DiscountInput = {

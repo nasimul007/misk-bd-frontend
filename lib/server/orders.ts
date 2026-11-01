@@ -175,7 +175,8 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
   });
 }
 
-type OrderRow = Prisma.OrderGetPayload<{ include: { items: true } }>;
+const withDetail = { items: true, history: { select: { status: true, createdAt: true }, orderBy: { createdAt: "asc" } } } satisfies Prisma.OrderInclude;
+type OrderRow = Prisma.OrderGetPayload<{ include: typeof withDetail }>;
 
 /** Row to the shape the receipt and account pages already render. */
 function toOrder(o: OrderRow): Order {
@@ -187,6 +188,7 @@ function toOrder(o: OrderRow): Order {
     items: o.items.map((i) => ({ key: `${i.slug}__${i.size}`, id: i.slug, title: i.title, image: i.image, size: i.size, price: i.unitPrice, original: i.unitList, qty: i.qty, stock: 0 })),
     totals: { listTotal: o.subtotalList, subtotal: o.subtotal, savings: o.discountTotal, shipping: o.shippingFee, vat: o.vatAmount, total: o.total },
     pay: o.paymentMethod,
+    timeline: o.history.map((h) => ({ status: h.status, at: h.createdAt.toISOString() })),
     payStatus: o.paymentStatus,
     payDueAt: o.paymentDueAt ? o.paymentDueAt.toISOString() : null,
     status: o.status,
@@ -232,7 +234,7 @@ const cleanRefs = (refs: Ref[]) =>
 export async function findOrders(refs: Ref[], customerId?: string): Promise<Order[]> {
   const wanted = cleanRefs(refs);
   if (!wanted.length) return [];
-  const rows = await db.order.findMany({ where: { number: { in: wanted.map((w) => w.n) } }, include: { items: true }, orderBy: { createdAt: "desc" } });
+  const rows = await db.order.findMany({ where: { number: { in: wanted.map((w) => w.n) } }, include: withDetail, orderBy: { createdAt: "desc" } });
   const tokenFor = new Map(wanted.map((w) => [w.n, w.token]));
   return rows
     .filter((r) => (customerId && r.customerId === customerId) || (tokenFor.get(r.number) && tokenMatches(r.guestTokenHash, tokenFor.get(r.number)!)))
@@ -241,7 +243,7 @@ export async function findOrders(refs: Ref[], customerId?: string): Promise<Orde
 
 /** A customer's own orders, plus any guest orders this browser can prove it placed. */
 export async function ordersFor(customerId: string, refs: Ref[] = []): Promise<Order[]> {
-  const mine = await db.order.findMany({ where: { customerId }, include: { items: true }, orderBy: { createdAt: "desc" }, take: 100 });
+  const mine = await db.order.findMany({ where: { customerId }, include: withDetail, orderBy: { createdAt: "desc" }, take: 100 });
   const mineNos = new Set(mine.map((o) => o.number));
   const guest = await findOrders(refs.filter((r) => !mineNos.has(parseOrderNo(r?.no) ?? -1)));
   return [...mine.map(toOrder), ...guest].sort((a, b) => b.placedAt.localeCompare(a.placedAt));
@@ -252,4 +254,36 @@ export async function claimOrders(customerId: string, refs: Ref[]): Promise<void
   const found = await findOrders(refs);
   const numbers = found.map((o) => parseOrderNo(o.id)).filter((n): n is number => n !== null);
   if (numbers.length) await db.order.updateMany({ where: { number: { in: numbers }, customerId: null }, data: { customerId } });
+}
+
+
+// ───────── Track my order ─────────
+
+const lastDigits = (v: string, n = 10) => v.replace(/\D/g, "").slice(-n);
+const WINDOW = 15 * 60_000;
+
+export type TrackResult = { ok: true; order: Order } | { ok: false; message: string };
+
+/**
+ * Look an order up by number plus the phone it was placed with, or as its signed-in owner. The order number
+ * alone grants nothing, so a wrong guess is counted per order and per caller, and too many are refused.
+ */
+export async function trackOrder(no: string, phone: string, customerId: string | undefined, caller: string): Promise<TrackResult> {
+  const notFound: TrackResult = { ok: false, message: "We couldn't find an order with those details. Check the order number and the phone number you ordered with." };
+  const n = parseOrderNo(no.trim().toUpperCase().replace(/^(\d{5,9})$/, "MB-$1"));
+  if (n === null) return notFound;
+
+  const keys = [`track:order:${n}`, `track:caller:${caller}`];
+  const since = new Date(Date.now() - WINDOW);
+  const [perOrder, perCaller] = await Promise.all(keys.map((identifier) => db.loginAttempt.count({ where: { identifier, success: false, at: { gt: since } } })));
+  if (perOrder >= 5 || perCaller >= 20) return { ok: false, message: "Too many attempts. Please wait a few minutes and try again." };
+
+  const row = await db.order.findUnique({ where: { number: n }, include: withDetail });
+  const owner = !!customerId && row?.customerId === customerId;
+  const phoneOk = !!row && lastDigits(phone).length >= 7 && lastDigits(phone) === lastDigits(row.contactPhone);
+  if (!row || (!owner && !phoneOk)) {
+    await db.loginAttempt.createMany({ data: keys.map((identifier) => ({ identifier, success: false })) });
+    return notFound;
+  }
+  return { ok: true, order: toOrder(row) };
 }

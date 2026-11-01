@@ -1,4 +1,4 @@
-import { geo, dialCodes } from "@/lib/data/geo";
+import { countries, dialCodes, dialOptions, geo } from "@/lib/data/geo";
 import { paymentsFor, shipping, vatRate, type PaymentId } from "@/lib/config";
 
 type Line = { price: number; original: number; qty: number };
@@ -59,7 +59,7 @@ export function validate(f: CheckoutForm): FormErrors {
 
   if (!digits) e.phone = "Please enter your phone number.";
   else if (!f.intl && !/^01[3-9]\d{8}$/.test(bdLocal(f.phone))) e.phone = "Enter a valid 11-digit Bangladeshi number, e.g. 01712 345678.";
-  else if (f.intl && !f.dial) e.phone = "Select your country code.";
+  else if (f.intl && !dialOptions.some((d) => d.code === f.dial)) e.phone = "Select your country code.";
   else if (f.intl && (digits.length < 6 || digits.length > 14)) e.phone = "Enter a valid phone number (6–14 digits).";
 
   const email = f.email.trim();
@@ -72,7 +72,7 @@ export function validate(f: CheckoutForm): FormErrors {
     if (!f.thana) e.thana = "Select an upazila / thana.";
     else if (f.district && !geo[f.division]?.[f.district]?.includes(f.thana)) e.thana = "Select an upazila in this district.";
   } else {
-    if (!f.country) e.country = "Select your country.";
+    if (!f.country || !countries.includes(f.country)) e.country = "Select your country.";
     if (!f.region.trim()) e.region = "Enter your state / province.";
     if (!f.city.trim()) e.city = "Enter your city.";
     if (!f.postal.trim()) e.postal = "Enter your postal code.";

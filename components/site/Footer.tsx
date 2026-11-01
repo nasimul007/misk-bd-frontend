@@ -6,7 +6,7 @@ import { Logo } from "./Logo";
 import { Year } from "./Year";
 
 const cats = ["Men's Perfume", "Women's Perfume", "Unisex", "Cologne", "Premium"];
-const help = [["Authenticity Guarantee", "/authenticity"], ["Shipping & Delivery", "/shipping"], ["Returns & Refunds", "/returns"], ["About Us", "/about"]];
+const help = [["Track My Order", "/track"], ["Authenticity Guarantee", "/authenticity"], ["Shipping & Delivery", "/shipping"], ["Returns & Refunds", "/returns"], ["About Us", "/about"]];
 const legal = [["Terms & Conditions", "/terms"], ["Privacy Policy", "/privacy"], ["Refund Policy", "/returns"], ["Warranty Policy", "/warranty"]];
 
 const link = { color: "var(--lux-ink-muted)", fontSize: 14, textDecoration: "none" } as const;

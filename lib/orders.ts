@@ -11,6 +11,7 @@ export type Order = {
   items: CartItem[];
   totals: Totals;
   pay: PaymentId;
+  timeline: { status: string; at: string }[]; // when each status was reached (staff notes are never included)
   payStatus: string; // unpaid | pending | paid | failed | refunded | cod_pending | cod_collected
   payDueAt: string | null; // ISO; an online order not paid by then is cancelled
   status: string;

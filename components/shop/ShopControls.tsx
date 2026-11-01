@@ -15,17 +15,24 @@ type Props = {
   sections: Section[];
   bounds: { lo: number; hi: number };
   hasSale: boolean;
+  hasStandard: boolean; // some product is sold in a single "Standard" size
   children: ReactNode; // the results, rendered on the server
 };
 
 /** Search, sort, chips and the filter rail. All state lives in the URL, so every view is shareable. */
-export function ShopControls({ query, sections, bounds, hasSale, children }: Props) {
+export function ShopControls({ query, sections, bounds, hasSale, hasStandard, children }: Props) {
   const money = useMoney();
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
   const [draft, setDraft] = useState(query.q);
-  const [maxDraft, setMaxDraft] = useState(query.max ?? bounds.hi);
+  // The slider's own value while it is being dragged. It belongs to one size and one range: when either
+  // changes (a size is picked, the filters are cleared) the draft is dropped and the slider starts again
+  // from that range's top, instead of carrying a value from the previous size's scale.
+  const rangeKey = `${query.size}|${bounds.lo}|${bounds.hi}`;
+  const [dragged, setDragged] = useState<{ key: string; v: number } | null>(null);
+  const maxDraft = Math.min(Math.max(dragged?.key === rangeKey ? dragged.v : (query.max ?? bounds.hi), bounds.lo), bounds.hi);
+  const setMaxDraft = (v: number) => setDragged({ key: rangeKey, v });
   const [filtersOpen, setFiltersOpen] = useState(false); // phone: the rail is closed until opened
   const [railHidden, setRailHidden] = useState(false); // desktop: the rail is open until hidden
   const [sortOpen, setSortOpen] = useState(false);
@@ -54,12 +61,11 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
 
   const activeSec = sections.find((s) => s.id === query.section);
   const sortLabel = SORTS.find((o) => o.v === query.sort)?.label ?? "Popularity";
-  const maxShown = query.max ?? bounds.hi;
   const cats = ["", ...(hasSale ? ["On Sale"] : []), ...CATEGORIES];
 
-  const setSize = (size: string) => { setMaxDraft(bounds.hi); go({ size, max: null }); };
+  const setSize = (size: string) => go({ size, max: null });
   const toggleFam = (f: string) => go({ families: query.families.includes(f) ? query.families.filter((x) => x !== f) : [...query.families, f] });
-  const clearAll = () => { setDraft(""); setMaxDraft(bounds.hi); go({ category: "", section: "", sub: "", q: "", size: "", max: null, families: [], inStock: false, best: false }); };
+  const clearAll = () => { setDraft(""); setDragged(null); go({ category: "", section: "", sub: "", q: "", size: "", max: null, families: [], inStock: false, best: false }); };
 
   const pill = (on: boolean) => ({ padding: "7px 0", borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: "pointer", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }) as const;
   const check = { accentColor: "var(--lux-gold)", width: 15, height: 15 } as const;
@@ -108,7 +114,7 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
             <ChevronDown size={14} color="var(--lux-ink-muted)" style={{ transform: sortOpen ? "rotate(180deg)" : "none", transition: "transform var(--dur-mid) var(--ease-lux)" }} />
           </button>
           {sortOpen && (
-            <div role="listbox" aria-label="Sort by" className="lux-surface flex flex-col gap-0.5" style={{ position: "absolute", top: 56, left: 0, minWidth: 268, borderRadius: 16, padding: 8, zIndex: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.32)" }}>
+            <div role="listbox" aria-label="Sort by" className="flex flex-col gap-0.5" style={{ position: "absolute", top: 56, left: 0, minWidth: 268, borderRadius: 16, padding: 8, zIndex: 40, background: "var(--lux-bg-2)", border: "1px solid var(--lux-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
               <div style={{ ...label, margin: "6px 10px 8px" }}>Sort by</div>
               {SORTS.map((o) => {
                 const on = o.v === query.sort;
@@ -138,19 +144,20 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
         <div>
           <div style={label}>Price by size</div>
           <div role="group" aria-label="Size for price filter" className="mb-3.5 grid grid-cols-3 gap-1.5">
-            {["", ...SIZES].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={pill(query.size === sz)}>{sz || "All"}</button>)}
+            {["", ...SIZES.filter((sz) => sz !== "Standard" || hasStandard)].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={pill(query.size === sz)}>{sz || "All"}</button>)}
           </div>
+          {hasStandard && <p style={{ margin: "-4px 0 12px", fontSize: 11.5, lineHeight: 1.5, color: "var(--lux-ink-muted)" }}>Standard: items sold in one size, with no ml option.</p>}
           <input
             type="range"
             aria-label={query.size ? `Maximum price for ${query.size}` : "Maximum starting price"}
             min={bounds.lo} max={bounds.hi} step={50}
-            value={Math.min(Math.max(maxDraft, bounds.lo), bounds.hi)}
+            value={maxDraft}
             onChange={(e) => { const v = +e.target.value; setMaxDraft(v); debounced({ max: v >= bounds.hi ? null : v }); }}
             style={{ width: "100%", accentColor: "var(--lux-gold)" }}
           />
           <div className="mt-1.5 flex justify-between" style={{ fontSize: 13, color: "var(--lux-ink-muted)" }}>
             <span>{money(bounds.lo)}</span>
-            <span style={{ color: "var(--lux-gold)", fontWeight: 600 }}>&le; {money(query.max ? maxShown : maxDraft)}</span>
+            <span style={{ color: "var(--lux-gold)", fontWeight: 600 }}>&le; {money(maxDraft)}</span>
           </div>
         </div>
         <div>

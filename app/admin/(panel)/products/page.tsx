@@ -45,7 +45,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                     <td style={td}>{prices.length ? `${money(Math.min(...prices))}${prices.length > 1 ? ` – ${money(Math.max(...prices))}` : ""}` : "—"}</td>
                     <td style={td}><StockStepper slug={p.slug} stock={p.stock} /></td>
                     <td style={td}><Badge tone={p.active ? "success" : "glass"}>{p.active ? "Active" : "Archived"}</Badge></td>
-                    <td style={td}><ProductActions slug={p.slug} active={p.active} /></td>
+                    <td style={td}><ProductActions slug={p.slug} title={p.title} active={p.active} /></td>
                   </tr>
                 );
               })}

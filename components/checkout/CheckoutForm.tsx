@@ -8,7 +8,7 @@ import { Lock, Truck } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { computeTotals, dialFor, emptyForm, estimateFor, validate, type CheckoutForm as Form } from "@/lib/checkout";
 import { paymentsFor } from "@/lib/config";
-import { countries, dialCodes, geo } from "@/lib/data/geo";
+import { countries, dialOptions, geo } from "@/lib/data/geo";
 import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
 import { placeOrderAction } from "@/app/actions/orders";
@@ -95,9 +95,9 @@ export function CheckoutForm() {
             <Field id="ck-phone" label="Phone *" error={err("phone")}>
               <div className="flex gap-2">
                 {f.intl ? (
-                  <select aria-label="Country code" className="lux-input" style={{ width: 120, flex: "none" }} value={f.dial} onChange={(e) => set("dial", e.target.value)}>
+                  <select aria-label="Country code" className="lux-input" style={{ width: 150, flex: "none" }} value={f.dial} onChange={(e) => set("dial", e.target.value)}>
                     <option value="">Code</option>
-                    {dialCodes.map((d) => <option key={d.country} value={d.code}>{d.code} {d.country}</option>)}
+                    {dialOptions.map((d) => <option key={d.code} value={d.code}>{d.label}</option>)}
                   </select>
                 ) : (
                   <div className="lux-input flex items-center" style={{ width: "auto", flex: "none", color: "var(--lux-ink-muted)" }}>+880</div>

@@ -1,7 +1,8 @@
 "use server";
 
 import { currentUser } from "@/lib/server/session";
-import { findOrderFor, findOrders, parseInput, parseOrderNo, placeOrder, type PlaceOrderResult } from "@/lib/server/orders";
+import { headers } from "next/headers";
+import { findOrderFor, findOrders, parseInput, parseOrderNo, placeOrder, trackOrder, type PlaceOrderResult, type TrackResult } from "@/lib/server/orders";
 import { expireUnpaid, sslEnabled, startSslcommerz } from "@/lib/server/payments";
 import type { Order } from "@/lib/orders";
 
@@ -51,5 +52,19 @@ export async function retryPaymentAction(orderId: unknown, token: unknown): Prom
   } catch (e) {
     console.error("retryPayment failed", e);
     return { ok: false, reason: "Something went wrong. Please try again." };
+  }
+}
+
+/** "Track my order": order number plus phone for guests, or just the number for the signed-in owner. */
+export async function trackOrderAction(orderId: unknown, phone: unknown): Promise<TrackResult> {
+  if (typeof orderId !== "string" || orderId.length > 20 || (phone !== undefined && typeof phone !== "string")) return { ok: false, message: "Enter your order number and phone number." };
+  try {
+    const user = await currentUser();
+    const h = await headers();
+    const caller = (h.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 45) || "unknown";
+    return await trackOrder(orderId, typeof phone === "string" ? phone.slice(0, 30) : "", user?.id, caller);
+  } catch (e) {
+    console.error("trackOrder failed", e);
+    return { ok: false, message: "Something went wrong. Please try again." };
   }
 }

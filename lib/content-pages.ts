@@ -31,16 +31,16 @@ export const contentPages: Record<ContentTopic, ContentPageData> = {
   shipping: {
     eyebrow: "Delivery",
     title: "Shipping & Delivery",
-    description: "Delivery rates and times across Bangladesh and internationally.",
+    description: "Delivery rates and times inside Bangladesh and internationally.",
     body: [
-      `We deliver nationwide across Bangladesh. Inside Dhaka: ${m(shipping.insideDhaka)}, ${shipping.estimate.dhaka}. Outside Dhaka: ${m(shipping.outsideDhaka)}, ${shipping.estimate.other}. Orders over ${m(shipping.freeThreshold)} ship free.`,
-      "International orders are shipped via DHL/FedEx with duties and taxes payable on arrival. Estimates are shown at checkout.",
+      `Inside Bangladesh, delivery costs ${m(shipping.insideDhaka)} to ${m(shipping.outsideDhaka)} depending on where you are: ${m(shipping.insideDhaka)} inside Dhaka (${shipping.estimate.dhaka}) and ${m(shipping.outsideDhaka)} for the rest of the country (${shipping.estimate.other}). Orders over ${m(shipping.freeThreshold)} ship free. Delivery within Bangladesh is charged in BDT.`,
+      `Outside Bangladesh, shipping depends on the courier (DHL or FedEx), the destination country and the weight of your parcel. At checkout we charge a flat ${m(shipping.intl)} per order (about ${money(shipping.intl, "USD")}), with ${shipping.estimate.intl} delivery. Larger or heavier parcels can cost more at the courier's rate, and we will confirm any difference with you before dispatch. Duties and taxes are payable on arrival. The exact charge is shown at checkout.`,
     ],
     points: [
-      `Inside Dhaka ${m(shipping.insideDhaka)} · ${shipping.estimate.dhaka}`,
-      `Outside Dhaka ${m(shipping.outsideDhaka)} · ${shipping.estimate.other}`,
-      `Free over ${m(shipping.freeThreshold)}`,
-      "International via DHL/FedEx",
+      `Inside Bangladesh ${m(shipping.insideDhaka)} – ${m(shipping.outsideDhaka)}`,
+      `Free over ${m(shipping.freeThreshold)} in Bangladesh`,
+      `International by courier · ${m(shipping.intl)} per order`,
+      `International delivery ${shipping.estimate.intl}`,
     ],
   },
   returns: {

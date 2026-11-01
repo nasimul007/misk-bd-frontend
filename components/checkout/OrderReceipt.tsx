@@ -10,6 +10,7 @@ import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
 import { lookupOrdersAction, retryPaymentAction } from "@/app/actions/orders";
 import { useSession } from "@/lib/auth";
+import { OrderProgress } from "@/components/track/OrderProgress";
 import { orderTokens, type Order } from "@/lib/orders";
 
 /** `undefined` while loading, `null` when this browser can't prove the order is its own. */
@@ -97,6 +98,7 @@ export function OrderReceipt({ id }: { id: string }) {
         </p>
       </div>
       {unpaid && <PayPrompt order={order} />}
+      <div className="lux-surface" style={{ borderRadius: 18, padding: 24, marginBottom: 22 }}><OrderProgress order={order} /></div>
 
       <div className="lux-surface" style={{ borderRadius: 18, padding: 26 }}>
         <div className="flex flex-wrap justify-between gap-5" style={{ paddingBottom: 18, borderBottom: "1px solid var(--lux-line)" }}>
@@ -133,6 +135,7 @@ export function OrderReceipt({ id }: { id: string }) {
 
       <div className="flex flex-wrap justify-center gap-3.5" style={{ marginTop: 28 }}>
         <Link href="/shop" className="lux-btn-fill lux-focus">Continue shopping</Link>
+        <Link href="/track" className="lux-btn lux-focus">Track another order</Link>
       </div>
     </div>
   );

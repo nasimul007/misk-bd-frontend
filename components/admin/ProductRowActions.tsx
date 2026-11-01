@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { adjustStockAction, setProductActiveAction } from "@/app/actions/admin";
+import { adjustStockAction, deleteProductAction, setProductActiveAction } from "@/app/actions/admin";
 
 const iconBtn = { width: 30, height: 30, borderRadius: 8, border: "1px solid var(--lux-line)", background: "transparent", color: "var(--lux-ink)", cursor: "pointer", fontSize: 16 } as const;
 
@@ -36,7 +36,7 @@ export function StockStepper({ slug, stock }: { slug: string; stock: number }) {
   );
 }
 
-export function ProductActions({ slug, active }: { slug: string; active: boolean }) {
+export function ProductActions({ slug, title, active }: { slug: string; title: string; active: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const toggle = async () => {
@@ -45,11 +45,24 @@ export function ProductActions({ slug, active }: { slug: string; active: boolean
     try { const r = await setProductActiveAction(slug, !active); if (r.ok) router.refresh(); } catch {}
     setBusy(false);
   };
+  const [error, setError] = useState("");
+  const remove = async () => {
+    if (busy) return;
+    if (!window.confirm(`Permanently delete "${title}"?\n\nThis can't be undone. Past orders keep their own copy of the item. To just hide it from the shop, use Archive instead.`)) return;
+    setBusy(true);
+    setError("");
+    try { const r = await deleteProductAction(slug); if (r.ok) router.refresh(); else setError(r.error); } catch { setError("Couldn't reach the server."); }
+    setBusy(false);
+  };
   const ghost = { padding: "0.4rem 0.9rem", fontSize: "0.8rem" };
   return (
+    <div>
     <div className="flex gap-2">
       <Link href={`/admin/products/${slug}`} className="lux-btn lux-focus" style={ghost}>Edit</Link>
       <button type="button" className="lux-btn lux-focus" style={{ ...ghost, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={toggle}>{active ? "Archive" : "Restore"}</button>
+      <button type="button" className="lux-btn lux-focus" style={{ ...ghost, color: "var(--lux-danger)", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={remove}>Delete</button>
+    </div>
+    {error && <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--lux-warning)" }}>{error}</p>}
     </div>
   );
 }
