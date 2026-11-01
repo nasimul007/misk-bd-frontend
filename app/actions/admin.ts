@@ -217,6 +217,18 @@ export async function adjustStockAction(slug: unknown, delta: unknown, reason: u
   });
 }
 
+export async function setProductActiveAction(slug: unknown, active: unknown): Promise<Result> {
+  return guarded("owner", async (s) => {
+    const key = text(slug, 120);
+    if (!key || typeof active !== "boolean") return { ok: false, error: "That change isn't valid." };
+    const r = await db.product.updateMany({ where: { slug: key }, data: { active } });
+    if (r.count === 0) return { ok: false, error: "Product not found." };
+    await db.auditLog.create({ data: { staffId: s.id, username: s.username, action: active ? "product.restore" : "product.archive", entity: "product", entityId: key } });
+    updateTag("catalogue");
+    return { ok: true };
+  });
+}
+
 // ───────── Discounts ─────────
 
 export type DiscountInput = {

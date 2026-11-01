@@ -1,4 +1,3 @@
-import { PageHead } from "@/components/admin/ui";
 import { SectionsManager } from "@/components/admin/SectionsManager";
 import { db } from "@/lib/db";
 import { getSiteContent } from "@/lib/data";
@@ -14,7 +13,6 @@ export default async function SectionsPage() {
   ]);
   return (
     <>
-      <PageHead title="Sections" />
       <SectionsManager
         meta={content.sectionsMeta}
         sections={rows.map((s) => ({

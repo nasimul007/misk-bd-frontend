@@ -1,4 +1,3 @@
-import { PageHead } from "@/components/admin/ui";
 import { DiscountsManager } from "@/components/admin/DiscountsManager";
 import { db } from "@/lib/db";
 import { requireStaffPage } from "@/lib/server/staff-session";
@@ -13,8 +12,7 @@ export default async function DiscountsPage() {
   ]);
   return (
     <>
-      <PageHead title="Discounts" />
-      <p style={{ margin: "-10px 0 20px", fontSize: 14, color: "var(--lux-ink-muted)", maxWidth: 640 }}>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--lux-ink-muted)", maxWidth: 640 }}>
         One discount applies per item and they never stack: a product rule beats a category rule, which beats a storewide rule; at the same level the bigger saving wins.
       </p>
       <DiscountsManager

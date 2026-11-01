@@ -1,19 +1,18 @@
 import { InventoryManager } from "@/components/admin/InventoryManager";
-import { PageHead, Panel, TableWrap, dateTime, td, th } from "@/components/admin/ui";
+import { Panel, TableWrap, dateTime, td, th } from "@/components/admin/ui";
 import { db } from "@/lib/db";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
 export default async function InventoryPage() {
   await requireStaffPage();
   const [products, log] = await Promise.all([
-    db.product.findMany({ orderBy: [{ active: "desc" }, { title: "asc" }], select: { slug: true, title: true, stock: true, active: true } }),
+    db.product.findMany({ orderBy: [{ active: "desc" }, { title: "asc" }], select: { slug: true, title: true, stock: true, active: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } } }),
     db.inventoryAdjustment.findMany({ orderBy: { at: "desc" }, take: 100, include: { product: { select: { title: true } } } }),
   ]);
   return (
     <>
-      <PageHead title="Inventory" />
-      <InventoryManager rows={products.map((p) => ({ ...p, image: "" }))} />
-      <h2 className="font-display" style={{ fontSize: 18, fontWeight: 500, margin: "28px 0 12px" }}>Adjustment history</h2>
+      <InventoryManager rows={products.map((p) => ({ slug: p.slug, title: p.title, stock: p.stock, active: p.active, image: p.images[0]?.url ?? "" }))} />
+      <h3 className="font-display" style={{ fontSize: 17, fontWeight: 500, margin: "28px 0 12px" }}>Adjustment history</h3>
       <Panel>
         {log.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No stock changes yet.</p> : (
           <TableWrap>

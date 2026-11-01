@@ -1,36 +1,57 @@
+import Image from "next/image";
 import Link from "next/link";
-import { PageHead, Panel, TableWrap, td, th } from "@/components/admin/ui";
+import { ProductActions, StockStepper } from "@/components/admin/ProductRowActions";
+import { Panel, TableWrap, td, th } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/Badge";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
-export default async function ProductsPage() {
+export default async function ProductsPage({ searchParams }: PageProps<"/admin/products">) {
   await requireStaffPage("owner");
-  const products = await db.product.findMany({ include: { variants: { select: { priceBdt: true } } }, orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
+  const sp = await searchParams;
+  const q = ((Array.isArray(sp.q) ? sp.q[0] : sp.q) ?? "").trim().slice(0, 60);
+  const skuNo = /^(mb-)?\d{1,6}$/i.test(q) ? Number(q.replace(/\D/g, "")) : null;
+  const products = await db.product.findMany({
+    where: q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, ...(skuNo !== null ? [{ skuNo }] : [])] } : {},
+    include: { variants: { select: { priceBdt: true } }, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } }, section: { select: { name: true } } },
+    orderBy: [{ active: "desc" }, { createdAt: "desc" }],
+  });
   return (
     <>
-      <PageHead title="Products">
+      <form action="/admin/products" className="flex flex-wrap gap-3" style={{ marginBottom: 16 }}>
+        <input name="q" defaultValue={q} placeholder="Search by name or SKU…" aria-label="Search products" className="lux-input" style={{ flex: 1, minWidth: 200 }} />
         <Link href="/admin/products/new" className="lux-btn-fill lux-focus" style={{ padding: "0.6rem 1.4rem", fontSize: "0.88rem" }}>Add product</Link>
-      </PageHead>
-      <Panel>
-        <TableWrap>
-          <thead><tr><th style={th}>Product</th><th style={th}>Category</th><th style={th}>Price</th><th style={th}>Stock</th><th style={th}>Status</th></tr></thead>
-          <tbody>
-            {products.map((p) => {
-              const prices = p.variants.map((v) => v.priceBdt);
-              return (
-                <tr key={p.id}>
-                  <td style={td}><Link href={`/admin/products/${p.slug}`} className="lux-link">{p.title}</Link><div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>MB-{String(p.skuNo).padStart(4, "0")}</div></td>
-                  <td style={td}>{p.category}</td>
-                  <td style={td}>{prices.length ? `${money(Math.min(...prices))}${prices.length > 1 ? ` – ${money(Math.max(...prices))}` : ""}` : "—"}</td>
-                  <td style={{ ...td, color: p.stock === 0 ? "var(--lux-danger)" : p.stock <= 5 ? "var(--lux-warning)" : undefined, fontWeight: p.stock <= 5 ? 600 : 400 }}>{p.stock}</td>
-                  <td style={td}>{p.active ? <Badge tone="success">Visible</Badge> : <Badge tone="glass">Hidden</Badge>}{p.bestseller && <> <Badge tone="gold">Best seller</Badge></>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </TableWrap>
+      </form>
+      <Panel style={{ padding: 0 }}>
+        {products.length === 0 ? <p style={{ margin: 0, padding: 20, color: "var(--lux-ink-muted)" }}>No products match.</p> : (
+          <TableWrap>
+            <thead><tr><th style={th}>Product</th><th style={th}>SKU</th><th style={th}>Price</th><th style={th}>Stock</th><th style={th}>Status</th><th style={th}>Actions</th></tr></thead>
+            <tbody>
+              {products.map((p) => {
+                const prices = p.variants.map((v) => v.priceBdt);
+                return (
+                  <tr key={p.id}>
+                    <td style={td}>
+                      <div className="flex items-center gap-2.5">
+                        {p.images[0] ? <Image src={p.images[0].url} alt="" width={34} height={34} style={{ width: 34, height: 34, borderRadius: 8, objectFit: "cover" }} /> : <span style={{ width: 34, height: 34 }} />}
+                        <div>
+                          <div>{p.title}{p.bestseller && <> <Badge tone="gold">Best seller</Badge></>}</div>
+                          {p.section?.name && <div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{p.section.name}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ ...td, color: "var(--lux-ink-muted)" }}>MB-{String(p.skuNo).padStart(4, "0")}</td>
+                    <td style={td}>{prices.length ? `${money(Math.min(...prices))}${prices.length > 1 ? ` – ${money(Math.max(...prices))}` : ""}` : "—"}</td>
+                    <td style={td}><StockStepper slug={p.slug} stock={p.stock} /></td>
+                    <td style={td}><Badge tone={p.active ? "success" : "glass"}>{p.active ? "Active" : "Archived"}</Badge></td>
+                    <td style={td}><ProductActions slug={p.slug} active={p.active} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableWrap>
+        )}
       </Panel>
     </>
   );

@@ -1,5 +1,4 @@
 import { ContentEditor } from "@/components/admin/ContentEditor";
-import { PageHead } from "@/components/admin/ui";
 import { getSiteContent } from "@/lib/data";
 import { db } from "@/lib/db";
 import { requireStaffPage } from "@/lib/server/staff-session";
@@ -9,7 +8,6 @@ export default async function ContentPage() {
   const [content, rows] = await Promise.all([getSiteContent(), db.siteBlock.findMany({ select: { key: true } })]);
   return (
     <>
-      <PageHead title="Site content" />
       <ContentEditor content={content} customised={rows.map((r) => r.key)} />
     </>
   );
