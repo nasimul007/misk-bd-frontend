@@ -5,13 +5,10 @@ import { OrderStatusPanel } from "@/components/admin/OrderStatusPanel";
 import { PageHead, Panel, StatusBadge, dateTime } from "@/components/admin/ui";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
+import { nextStatuses } from "@/lib/order-flow";
 import { orderNo, parseOrderNo } from "@/lib/server/orders";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
-const NEXT: Record<string, string[]> = {
-  pending: ["confirmed", "cancelled"], confirmed: ["packed", "cancelled"], packed: ["shipped", "cancelled"],
-  shipped: ["delivered", "returned"], delivered: ["returned"], returned: [], cancelled: [],
-};
 
 export default async function OrderPage({ params }: PageProps<"/admin/orders/[number]">) {
   await requireStaffPage();
@@ -77,7 +74,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
           </Panel>
         </div>
         <div className="flex flex-col gap-6">
-          <Panel title="Update status"><OrderStatusPanel orderNo={orderNo(o.number)} next={NEXT[o.status] ?? []} /></Panel>
+          <Panel title="Update status"><OrderStatusPanel orderNo={orderNo(o.number)} next={nextStatuses(o.status)} /></Panel>
           <Panel title="Customer">
             {row("Name", o.contactName)}
             {row("Phone", o.contactPhone)}

@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { NEXT, STATUSES, type Status } from "@/lib/order-flow";
 import { BLOCK_KEYS, parseBlock } from "@/lib/site-blocks";
 import { parseOrderNo } from "@/lib/server/orders";
 import { audit, changeOwnPassword, createStaff, resetStaffPassword, revokeAllStaffSessions, staffLogin, type Result } from "@/lib/server/staff";
@@ -51,17 +52,6 @@ export async function changePasswordAction(current: unknown, next: unknown): Pro
 
 // ───────── Orders ─────────
 
-type Status = "pending" | "confirmed" | "packed" | "shipped" | "delivered" | "returned" | "cancelled";
-const NEXT: Record<Status, Status[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["packed", "cancelled"],
-  packed: ["shipped", "cancelled"],
-  shipped: ["delivered", "returned"],
-  delivered: ["returned"],
-  returned: [],
-  cancelled: [],
-};
-const STATUSES = Object.keys(NEXT) as Status[];
 
 export async function setOrderStatusAction(orderNumber: unknown, status: unknown, note: unknown): Promise<Result> {
   return guarded(undefined, async (s) => {

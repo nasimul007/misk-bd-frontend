@@ -7,7 +7,7 @@ export const td: CSSProperties = { padding: "12px", fontSize: 14, borderBottom: 
 export function PageHead({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: 22 }}>
-      <h1 className="font-display" style={{ fontSize: 28, fontWeight: 500, margin: 0 }}>{title}</h1>
+      <h2 className="font-display" style={{ fontSize: 22, fontWeight: 500, margin: 0 }}>{title}</h2>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
   );

@@ -1,7 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
-import { PageHead, Panel, StatusBadge, TableWrap, dateTime, td, th } from "@/components/admin/ui";
+import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
+import { Panel, TableWrap, dateTime, td, th } from "@/components/admin/ui";
+import { StockPill } from "@/components/ui/StockPill";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
+import { nextStatuses } from "@/lib/order-flow";
 import { orderNo } from "@/lib/server/orders";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
@@ -20,7 +24,7 @@ export default async function Dashboard() {
     db.order.aggregate({ where: { createdAt: { gte: startOfDay }, status: { not: "cancelled" } }, _count: true, _sum: { total: true } }),
     db.order.aggregate({ where: { createdAt: { gte: weekAgo }, status: { notIn: ["cancelled", "returned"] } }, _count: true, _sum: { total: true } }),
     db.order.groupBy({ by: ["paymentMethod"], where: { createdAt: { gte: weekAgo }, status: { notIn: ["cancelled", "returned"] } }, _count: true }),
-    db.product.findMany({ where: { soldCount: { gt: 0 } }, orderBy: { soldCount: "desc" }, take: 5, select: { slug: true, title: true, soldCount: true } }),
+    db.product.findMany({ where: { soldCount: { gt: 0 } }, orderBy: { soldCount: "desc" }, take: 5, select: { slug: true, title: true, soldCount: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } } }),
     db.product.findMany({ where: { active: true, stock: { lte: LOW_STOCK } }, orderBy: { stock: "asc" }, select: { slug: true, title: true, stock: true }, take: 10 }),
     db.order.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
   ]);
@@ -42,26 +46,53 @@ export default async function Dashboard() {
 
   return (
     <>
-      <PageHead title="Dashboard" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" style={{ marginBottom: 24 }}>
-        {stats.map(([label, value, href]) => (
-          <Link key={label} href={href} className="lux-surface lux-focus" style={{ borderRadius: 16, padding: 20, display: "block" }}>
-            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-ink-muted)" }}>{label}</div>
-            <div className="font-display" style={{ fontSize: 26, color: "var(--lux-gold)", marginTop: 6 }}>{value}</div>
-          </Link>
-        ))}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" style={{ marginBottom: 24 }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginBottom: 28 }}>
         {weekly.map(([label, value]) => (
-          <div key={label} className="lux-surface" style={{ borderRadius: 16, padding: 20 }}>
-            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-ink-muted)" }}>{label}</div>
-            <div className="font-display" style={{ fontSize: 26, color: label.startsWith("Revenue") ? "var(--lux-gold)" : undefined, marginTop: 6 }}>{value}</div>
+          <div key={label} className="lux-surface" style={{ borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>{label}</span>
+            <span className="font-display" style={{ fontSize: 28, color: label.startsWith("Revenue") ? "var(--lux-gold)" : label === "Low stock" && low.length ? "var(--lux-danger)" : undefined }}>{value}</span>
           </div>
         ))}
       </div>
-      {!owner && <p style={{ margin: "-12px 0 24px", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Revenue and pricing are visible to the Owner account only.</p>}
-      <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title="Recent orders">
+      {!owner && <p style={{ margin: "-16px 0 24px", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Revenue and pricing are visible to the Owner account only.</p>}
+      <div className="grid items-start gap-5 lg:grid-cols-[1.3fr_1fr]" style={{ marginBottom: 28 }}>
+        <section className="lux-surface" style={{ borderRadius: 16, padding: 18 }}>
+          <h3 className="font-display" style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 500 }}>Top products</h3>
+          {top.length === 0 ? <p style={{ margin: 0, fontSize: 14, color: "var(--lux-ink-muted)" }}>No sales yet.</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {top.map((p) => (
+                <li key={p.slug} className="flex items-center gap-3">
+                  {p.images[0] ? <Image src={p.images[0].url} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover" }} /> : <span style={{ width: 38, height: 38 }} />}
+                  <span style={{ flex: 1, fontSize: 14 }}>{p.title}</span>
+                  <span style={{ fontSize: 13, color: "var(--lux-ink-muted)" }}>{p.soldCount} sold</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="lux-surface" style={{ borderRadius: 16, padding: 18 }}>
+          <h3 className="font-display" style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 500 }}>Low stock alerts</h3>
+          {low.length === 0 ? <p style={{ margin: 0, fontSize: 14, color: "var(--lux-ink-muted)" }}>All products are well stocked.</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {low.map((p) => (
+                <li key={p.slug} className="flex items-center gap-2.5">
+                  <Link href={owner ? `/admin/products/${p.slug}` : "/admin/inventory"} className="lux-focus" style={{ flex: 1, fontSize: 14 }}>{p.title}</Link>
+                  <StockPill stock={p.stock} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" style={{ marginBottom: 28 }}>
+        {stats.map(([label, value, href]) => (
+          <Link key={label} href={href} className="lux-surface lux-focus" style={{ borderRadius: 16, padding: 20, display: "block" }}>
+            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>{label}</div>
+            <div className="font-display" style={{ fontSize: 24, color: "var(--lux-gold)", marginTop: 6 }}>{value}</div>
+          </Link>
+        ))}
+      </div>
+      <Panel title="Recent orders">
           {recent.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No orders yet.</p> : (
             <TableWrap>
               <thead><tr><th style={th}>Order</th><th style={th}>Placed</th><th style={th}>Customer</th><th style={th}>Total</th><th style={th}>Status</th></tr></thead>
@@ -72,35 +103,13 @@ export default async function Dashboard() {
                     <td style={td}>{dateTime(o.createdAt)}</td>
                     <td style={td}>{o.contactName}</td>
                     <td style={td}>{money(o.total)}</td>
-                    <td style={td}><StatusBadge status={o.status} /></td>
+                    <td style={td}><OrderStatusSelect orderNo={orderNo(o.number)} status={o.status} next={nextStatuses(o.status)} /></td>
                   </tr>
                 ))}
               </tbody>
             </TableWrap>
           )}
         </Panel>
-        <div className="flex flex-col gap-6">
-        <Panel title="Top products">
-          {top.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No sales yet.</p> : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              {top.map((p) => (<li key={p.slug} className="flex justify-between gap-3" style={{ fontSize: 14 }}><span>{p.title}</span><span style={{ color: "var(--lux-ink-muted)" }}>{p.soldCount} sold</span></li>))}
-            </ul>
-          )}
-        </Panel>
-        <Panel title={`Low stock (${LOW_STOCK} or fewer)`}>
-          {low.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>Everything is well stocked.</p> : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              {low.map((p) => (
-                <li key={p.slug} className="flex justify-between gap-3" style={{ fontSize: 14 }}>
-                  <Link href={owner ? `/admin/products/${p.slug}` : "/admin/inventory"} className="lux-link">{p.title}</Link>
-                  <span style={{ color: p.stock === 0 ? "var(--lux-danger)" : "var(--lux-warning)", fontWeight: 600 }}>{p.stock === 0 ? "Out" : p.stock}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-        </div>
-      </div>
     </>
   );
 }

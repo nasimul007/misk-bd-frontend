@@ -32,21 +32,21 @@ async function Shell({ children }: { children: ReactNode }) {
   const items =
     staff.role === "owner"
       ? [
-          { href: "/admin", label: "Overview" },
-          { href: "/admin/products", label: "Products" },
-          { href: "/admin/sections", label: "Sections" },
-          { href: "/admin/discounts", label: "Discounts" },
-          { href: "/admin/orders", label: "Orders" },
-          { href: "/admin/inventory", label: "Inventory" },
-          { href: "/admin/content", label: "Site content" },
-          { href: "/admin/staff", label: "Staff access" },
-          { href: "/admin/account", label: "My account" },
+          { href: "/admin", label: "Overview", icon: "overview" },
+          { href: "/admin/products", label: "Products", icon: "products" },
+          { href: "/admin/sections", label: "Sections", icon: "sections" },
+          { href: "/admin/discounts", label: "Discounts", icon: "discounts" },
+          { href: "/admin/orders", label: "Orders", icon: "orders" },
+          { href: "/admin/inventory", label: "Inventory", icon: "inventory" },
+          { href: "/admin/content", label: "Site content", icon: "content" },
+          { href: "/admin/staff", label: "Staff access", icon: "staff" },
+          { href: "/admin/account", label: "My account", icon: "account" },
         ]
       : [
-          { href: "/admin", label: "Overview" },
-          { href: "/admin/orders", label: "Orders" },
-          { href: "/admin/inventory", label: "Inventory" },
-          { href: "/admin/account", label: "My account" },
+          { href: "/admin", label: "Overview", icon: "overview" },
+          { href: "/admin/orders", label: "Orders", icon: "orders" },
+          { href: "/admin/inventory", label: "Inventory", icon: "inventory" },
+          { href: "/admin/account", label: "My account", icon: "account" },
         ];
   return (
     <>

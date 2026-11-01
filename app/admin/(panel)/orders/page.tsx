@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { PageHead, Panel, StatusBadge, TableWrap, dateTime, td, th } from "@/components/admin/ui";
+import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
+import { PageHead, Panel, TableWrap, dateTime, td, th } from "@/components/admin/ui";
+import { Badge } from "@/components/ui/Badge";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
+import { nextStatuses, STATUSES } from "@/lib/order-flow";
 import { orderNo, parseOrderNo } from "@/lib/server/orders";
 import { requireStaffPage } from "@/lib/server/staff-session";
-
-const STATUSES = ["pending", "confirmed", "packed", "shipped", "delivered", "returned", "cancelled"] as const;
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
   await requireStaffPage();
@@ -46,19 +47,24 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       <Panel>
         {orders.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No orders match.</p> : (
           <TableWrap>
-            <thead><tr><th style={th}>Order</th><th style={th}>Placed</th><th style={th}>Customer</th><th style={th}>Items</th><th style={th}>Total</th><th style={th}>Payment</th><th style={th}>Status</th></tr></thead>
+            <thead><tr><th style={th}>Order</th><th style={th}>Customer</th><th style={th}>Division</th><th style={th}>Payment</th><th style={th}>Total</th><th style={th}>Status</th></tr></thead>
             <tbody>
-              {orders.map((o) => (
+              {orders.map((o) => {
+                const n = o.items.reduce((t, i) => t + i.qty, 0);
+                return (
                 <tr key={o.id}>
-                  <td style={td}><Link href={`/admin/orders/${orderNo(o.number)}`} className="lux-link">{orderNo(o.number)}</Link></td>
-                  <td style={td}>{dateTime(o.createdAt)}</td>
+                  <td style={td}>
+                    <Link href={`/admin/orders/${orderNo(o.number)}`} className="lux-link">{orderNo(o.number)}</Link>
+                    <div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{dateTime(o.createdAt)} · {n} item{n === 1 ? "" : "s"}</div>
+                  </td>
                   <td style={td}>{o.contactName}<div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{o.contactPhone}</div></td>
-                  <td style={td}>{o.items.reduce((n, i) => n + i.qty, 0)}</td>
+                  <td style={{ ...td, color: "var(--lux-ink-muted)" }}>{o.shipDivision ?? o.shipCountry ?? "—"}</td>
+                  <td style={td}><Badge tone={o.paymentMethod === "cod" ? "warning" : "glass"}>{o.paymentMethod}</Badge><div style={{ fontSize: 12, color: "var(--lux-ink-muted)", marginTop: 2 }}>{o.paymentStatus.replace("_", " ")}</div></td>
                   <td style={td}>{money(o.total)}</td>
-                  <td style={td}>{o.paymentMethod} · {o.paymentStatus.replace("_", " ")}</td>
-                  <td style={td}><StatusBadge status={o.status} /></td>
+                  <td style={td}><OrderStatusSelect orderNo={orderNo(o.number)} status={o.status} next={nextStatuses(o.status)} /></td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </TableWrap>
         )}
