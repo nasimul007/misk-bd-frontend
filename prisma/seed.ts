@@ -53,7 +53,7 @@ async function main() {
     productIds.set(p.id, row.id);
 
     await db.productVariant.deleteMany({ where: { productId: row.id } });
-    await db.productVariant.createMany({ data: p.variants.map((v) => ({ productId: row.id, size: v.size, priceBdt: v.price })) });
+    await db.productVariant.createMany({ data: p.variants.map((v, position) => ({ productId: row.id, size: v.size, position, priceBdt: v.price })) });
 
     await db.productImage.deleteMany({ where: { productId: row.id } });
     // The prototype's gallery repeats an image; positions must be unique, so keep the first of each.

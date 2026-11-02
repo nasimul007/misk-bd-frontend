@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpDown, Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { Chip } from "@/components/ui/Chip";
-import { CATEGORIES, FAMILIES, SIZES, SORTS, toSearch, type ShopQuery } from "@/lib/catalogue";
+import { CATEGORIES, FAMILIES, SORTS, toSearch, type Facets, type ShopQuery } from "@/lib/catalogue";
 import { useMoney } from "@/lib/currency";
 import type { Section } from "@/lib/types";
 
@@ -14,12 +14,13 @@ type Props = {
   query: ShopQuery;
   sections: Section[];
   bounds: { lo: number; hi: number };
+  facets: Facets;
   hasSale: boolean;
   children: ReactNode; // the results, rendered on the server
 };
 
 /** Search, sort, chips and the filter rail. All state lives in the URL, so every view is shareable. */
-export function ShopControls({ query, sections, bounds, hasSale, children }: Props) {
+export function ShopControls({ query, sections, bounds, facets, hasSale, children }: Props) {
   const money = useMoney();
   const router = useRouter();
   const pathname = usePathname();
@@ -28,7 +29,7 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
   // The slider's own value while it is being dragged. It belongs to one size and one range: when either
   // changes (a size is picked, the filters are cleared) the draft is dropped and the slider starts again
   // from that range's top, instead of carrying a value from the previous size's scale.
-  const rangeKey = `${query.size}|${bounds.lo}|${bounds.hi}`;
+  const rangeKey = `${query.unit}|${query.size}|${bounds.lo}|${bounds.hi}`;
   const [dragged, setDragged] = useState<{ key: string; v: number } | null>(null);
   const maxDraft = Math.min(Math.max(dragged?.key === rangeKey ? dragged.v : (query.max ?? bounds.hi), bounds.lo), bounds.hi);
   const setMaxDraft = (v: number) => setDragged({ key: rangeKey, v });
@@ -63,8 +64,13 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
   const cats = ["", ...(hasSale ? ["On Sale"] : []), ...CATEGORIES];
 
   const setSize = (size: string) => go({ size, max: null });
+  const setUnit = (unit: string) => go({ unit, size: "", max: null });
+  // With one unit in the shop its options are always listed; with several, the shopper picks a unit tab first.
+  const activeUnit = query.unit || (facets.units.length === 1 ? facets.units[0].id : "");
+  const sizeOptions = activeUnit ? (facets.options[activeUnit] ?? []) : [];
+  const shortLabels = sizeOptions.every((l) => l.length <= 6);
   const toggleFam = (f: string) => go({ families: query.families.includes(f) ? query.families.filter((x) => x !== f) : [...query.families, f] });
-  const clearAll = () => { setDraft(""); setDragged(null); go({ category: "", section: "", sub: "", q: "", size: "", max: null, families: [], inStock: false, best: false }); };
+  const clearAll = () => { setDraft(""); setDragged(null); go({ category: "", section: "", sub: "", q: "", unit: "", size: "", max: null, families: [], inStock: false, best: false }); };
 
   const pill = (on: boolean) => ({ padding: "7px 0", borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: "pointer", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }) as const;
   const check = { accentColor: "var(--lux-gold)", width: 15, height: 15 } as const;
@@ -141,10 +147,17 @@ export function ShopControls({ query, sections, bounds, hasSale, children }: Pro
       <div className={`mt-6 grid items-start gap-5 lg:gap-7 ${railHidden ? "" : "lg:grid-cols-[232px_1fr]"}`}>
       <aside className={`lux-surface flex-col gap-6 p-[22px] lg:sticky lg:top-24 ${filtersOpen ? "flex" : "hidden"} ${railHidden ? "lg:hidden" : "lg:flex"}`} style={{ borderRadius: 18 }} aria-label="Filters">
         <div>
-          <div style={label}>Price by size</div>
-          <div role="group" aria-label="Size for price filter" className="mb-3.5 grid grid-cols-3 gap-1.5">
-            {["", ...SIZES].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={pill(query.size === sz)}>{sz || "All"}</button>)}
-          </div>
+          <div style={label}>{sizeOptions.length ? "Price by size" : "Price"}</div>
+          {facets.units.length > 1 && (
+            <div role="group" aria-label="Sold in" className="mb-3 flex flex-wrap gap-1.5">
+              {[{ id: "", tab: "All" }, ...facets.units].map((u) => <button key={u.id || "all"} type="button" onClick={() => setUnit(u.id)} aria-pressed={query.unit === u.id} style={{ ...pill(query.unit === u.id), padding: "7px 12px" }}>{u.tab}</button>)}
+            </div>
+          )}
+          {sizeOptions.length > 0 && (
+            <div role="group" aria-label="Option for price filter" className={shortLabels ? "mb-3.5 grid grid-cols-3 gap-1.5" : "mb-3.5 flex flex-wrap gap-1.5"}>
+              {["", ...sizeOptions].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={{ ...pill(query.size === sz), ...(shortLabels ? {} : { padding: "7px 12px" }) }}>{sz || "All"}</button>)}
+            </div>
+          )}
           <input
             type="range"
             aria-label={query.size ? `Maximum price for ${query.size}` : "Maximum starting price"}

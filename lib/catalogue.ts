@@ -1,8 +1,8 @@
 import type { PricedProduct, Section } from "@/lib/types";
+import { UNITS } from "@/lib/units";
 
 export const CATEGORIES = ["Men's Perfume", "Women's Perfume", "Unisex", "Cologne", "Premium"] as const;
 export const FAMILIES = ["Oud & Amber", "Rose & Musk", "Woods & Incense", "Citrus & Leather", "White Florals"] as const;
-export const SIZES = ["1ml", "3ml", "6ml", "12ml"] as const;
 export const SORTS = [
   { v: "popular", label: "Popularity", hint: "Most reviewed first" },
   { v: "newest", label: "Newest", hint: "Latest arrivals" },
@@ -19,7 +19,8 @@ export type ShopQuery = {
   sub: string;
   q: string;
   sort: SortKey;
-  size: string; // "" = any
+  unit: string; // "" = any unit
+  size: string; // "" = any option label
   max: number | null; // max price at the chosen size
   families: string[];
   inStock: boolean;
@@ -29,11 +30,28 @@ export type ShopQuery = {
 type Raw = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
-export function parseQuery(raw: Raw, sections: Section[]): ShopQuery {
+/** What the shop can currently be filtered by size/unit with, taken from the products themselves. */
+export type Facets = { units: { id: string; tab: string }[]; options: Record<string, string[]> };
+
+const amountOf = (l: string) => Number(/[\d.]+/.exec(l)?.[0] ?? NaN);
+
+export function facetsOf(all: PricedProduct[]): Facets {
+  const units = UNITS.filter((u) => all.some((p) => p.unit === u.id)).map((u) => ({ id: u.id, tab: u.tab }));
+  const options: Record<string, string[]> = {};
+  for (const u of units) {
+    const labels = new Set<string>();
+    for (const p of all) if (p.unit === u.id) for (const v of p.variants) labels.add(v.size);
+    options[u.id] = [...labels].sort((a, b) => (amountOf(a) - amountOf(b)) || a.localeCompare(b));
+  }
+  return { units, options };
+}
+
+export function parseQuery(raw: Raw, sections: Section[], facets: Facets): ShopQuery {
   const section = sections.find((s) => s.id === one(raw.section));
   const sub = section?.children.find((c) => c.id === one(raw.sub));
   const category = one(raw.category);
   const sort = one(raw.sort);
+  const unit = one(raw.unit);
   const size = one(raw.size);
   const max = Number(one(raw.max));
   const fam = one(raw.fam);
@@ -43,7 +61,8 @@ export function parseQuery(raw: Raw, sections: Section[]): ShopQuery {
     sub: sub?.id ?? "",
     q: one(raw.q).slice(0, 80),
     sort: SORTS.some((s) => s.v === sort) ? (sort as SortKey) : "popular",
-    size: (SIZES as readonly string[]).includes(size) ? size : "",
+    unit: facets.units.some((u) => u.id === unit) ? unit : "",
+    size: Object.values(facets.options).some((o) => o.includes(size)) ? size : "",
     max: Number.isFinite(max) && max > 0 ? max : null,
     families: fam ? fam.split(",").filter((f) => (FAMILIES as readonly string[]).includes(f)) : [],
     inStock: one(raw.stock) === "1",
@@ -59,6 +78,7 @@ export function toSearch(q: Partial<ShopQuery>): string {
   if (q.category) p.set("category", q.category);
   if (q.q) p.set("q", q.q);
   if (q.sort && q.sort !== "popular") p.set("sort", q.sort);
+  if (q.unit) p.set("unit", q.unit);
   if (q.size) p.set("size", q.size);
   if (q.max) p.set("max", String(q.max));
   if (q.families?.length) p.set("fam", q.families.join(","));
@@ -79,10 +99,11 @@ export function filterProducts(all: PricedProduct[], q: ShopQuery): PricedProduc
       !q.category ||
       (q.category === "On Sale" ? p.onSale : q.category === "Premium" ? p.tags.includes("premium") : q.category === "Cologne" ? p.tags.includes("cologne") : p.category === q.category);
     const inQ = !needle || p.title.toLowerCase().includes(needle) || p.family.toLowerCase().includes(needle);
+    const inUnit = !q.unit || p.unit === q.unit;
     const inSize = !q.size || p.variants.some((v) => v.size === q.size);
     const inPrice = q.max === null || priceAt(p, q.size) <= q.max;
     return (
-      inCat && inQ && inSize && inPrice &&
+      inCat && inQ && inUnit && inSize && inPrice &&
       (!q.inStock || p.stock > 0) &&
       (q.families.length === 0 || q.families.includes(p.family)) &&
       (!q.best || p.bestseller) &&
@@ -99,7 +120,8 @@ export function filterProducts(all: PricedProduct[], q: ShopQuery): PricedProduc
 }
 
 /** Slider bounds (rounded to ৳50) for the products that can show at the chosen size. */
-export function priceBounds(all: PricedProduct[], size: string) {
+export function priceBounds(all: PricedProduct[], size: string, unit = "") {
+  all = unit ? all.filter((p) => p.unit === unit) : all;
   const pool = all.filter((p) => !size || p.variants.some((v) => v.size === size));
   const prices = (pool.length ? pool : all).map((p) => priceAt(p, size));
   return { lo: Math.floor(Math.min(...prices) / 50) * 50, hi: Math.ceil(Math.max(...prices) / 50) * 50 };

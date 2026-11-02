@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { NEXT, STATUSES, type Status } from "@/lib/order-flow";
+import { UNIT_IDS } from "@/lib/units";
 import { BLOCK_KEYS, parseBlock } from "@/lib/site-blocks";
 import { parseOrderNo } from "@/lib/server/orders";
 import { audit, changeOwnPassword, createStaff, resetStaffPassword, revokeAllStaffSessions, staffLogin, type Result } from "@/lib/server/staff";
@@ -107,9 +108,10 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
 
 // ───────── Products ─────────
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml"];
+const MAX_OPTIONS = 8;
 export type ProductInput = {
   slug: string | null;
+  unit: string;
   title: string; titleAr: string; description: string; category: string; scentFamily: string; sectionSlug: string; subsectionSlug: string;
   stock: number | string; bestseller: boolean; active: boolean; tags: string;
   lastingHours: number | string; projection: string; concentration: string; origin: string;
@@ -130,18 +132,24 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
     const stock = int(p.stock);
     if (!Number.isInteger(stock) || stock < 0 || stock > 100000) return { ok: false, error: "Stock must be a whole number, 0 or more." };
 
+    const unit = text(p.unit, 12);
+    if (!UNIT_IDS.includes(unit)) return { ok: false, error: "Choose what this product is sold in (ml, grams, pieces…)." };
+
+    // Options in the order the admin listed them. The label is what shoppers see ("6ml", "50g", "Pack of 10").
     const seen = new Set<string>();
-    const variants: { size: string; priceBdt: number }[] = [];
-    for (const v of Array.isArray(p.variants) ? p.variants : []) {
-      const size = text(v?.size, 12);
+    const variants: { size: string; priceBdt: number; position: number }[] = [];
+    const given = Array.isArray(p.variants) ? p.variants : [];
+    if (given.length > MAX_OPTIONS) return { ok: false, error: `A product can have up to ${MAX_OPTIONS} options.` };
+    for (const v of given) {
+      const size = text(v?.size, 40);
       const price = int(v?.price);
-      if (!SIZES.includes(size)) return { ok: false, error: `Size must be one of ${SIZES.join(", ")}.` };
-      if (seen.has(size)) return { ok: false, error: `Size ${size} is listed twice.` };
+      if (!size) return { ok: false, error: "Every option needs a name, such as 50g or Pack of 10." };
+      if (seen.has(size.toLowerCase())) return { ok: false, error: `"${size}" is listed twice.` };
       if (!Number.isInteger(price) || price < 1 || price > 10_000_000) return { ok: false, error: `Enter a price above 0 for ${size}.` };
-      seen.add(size);
-      variants.push({ size, priceBdt: price });
+      seen.add(size.toLowerCase());
+      variants.push({ size, priceBdt: price, position: variants.length });
     }
-    if (!variants.length) return { ok: false, error: "Add at least one size with a price." };
+    if (!variants.length) return { ok: false, error: "Add at least one option with a price." };
 
     const images = (Array.isArray(p.images) ? p.images : []).map((u) => text(u, 300)).filter(Boolean).slice(0, 5);
     if (images.some((u) => !okImage(u))) return { ok: false, error: "Images must be uploaded (or be a file already on the site)." };
@@ -156,7 +164,7 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
     if (lasting !== null && (!Number.isInteger(lasting) || lasting < 0 || lasting > 72)) return { ok: false, error: "Lasting hours must be between 0 and 72." };
 
     const data = {
-      title, titleAr: text(p.titleAr, 120) || null, description: text(p.description, 4000), category,
+      title, unit, titleAr: text(p.titleAr, 120) || null, description: text(p.description, 4000), category,
       scentFamily: text(p.scentFamily, 60) || null, sectionId: section?.id ?? null, subsectionId: sub?.id ?? null,
       stock, bestseller: !!p.bestseller, active: !!p.active,
       tags: text(p.tags, 300).split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12),
@@ -184,7 +192,7 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
       }
       await tx.productVariant.deleteMany({ where: { productId: id, size: { notIn: variants.map((v) => v.size) } } });
       for (const v of variants) {
-        await tx.productVariant.upsert({ where: { productId_size: { productId: id, size: v.size } }, update: { priceBdt: v.priceBdt }, create: { productId: id, ...v } });
+        await tx.productVariant.upsert({ where: { productId_size: { productId: id, size: v.size } }, update: { priceBdt: v.priceBdt, position: v.position }, create: { productId: id, ...v } });
       }
       await tx.productImage.deleteMany({ where: { productId: id } });
       if (images.length) await tx.productImage.createMany({ data: images.map((url, position) => ({ productId: id, url, position })) });
@@ -281,7 +289,7 @@ export async function saveDiscountAction(raw: unknown): Promise<Result> {
       targetProductId = p.id;
     }
     if (scope === "category" && !target) return { ok: false, error: "Enter the category (for example Women's Perfume)." };
-    const sizes = (Array.isArray(d.sizes) ? d.sizes : []).filter((x): x is string => typeof x === "string" && SIZES.includes(x));
+    const sizes = (Array.isArray(d.sizes) ? d.sizes : []).filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 40);
     const startsOn = text(d.startsOn, 10), endsOn = text(d.endsOn, 10);
     if ((startsOn && !DATE.test(startsOn)) || (endsOn && !DATE.test(endsOn))) return { ok: false, error: "Use real dates." };
     if (startsOn && endsOn && endsOn < startsOn) return { ok: false, error: "The end date must be after the start date." };

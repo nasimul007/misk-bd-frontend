@@ -112,6 +112,7 @@ model Product {
   title         String                @db.VarChar(120)
   titleAr       String?               @db.VarChar(120)
   description   String                @default("")
+  unit          String                @default("ml") @db.VarChar(12) // what its options are measured in: ml, g, kg, piece, pack, set, box
   category      String                @db.VarChar(60)
   scentFamily   String?               @db.VarChar(60)
   sectionId     String?               @db.Uuid
@@ -146,7 +147,8 @@ model ProductVariant {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   productId String   @db.Uuid
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size      String   @db.VarChar(12) // 1ml, 3ml, 6ml, 12ml
+  size      String   @db.VarChar(40) // the option label shown to shoppers: "6ml", "50g", "Pack of 10", "1 piece"
+  position  Int      @default(0) @db.SmallInt // order of the options on the product page; the first is what quick-add picks
   priceBdt  Int // list price; CHECK (price_bdt > 0) lives in the migration
   createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
@@ -343,7 +345,7 @@ model OrderItem {
   slug      String   @db.VarChar(120)
   title     String   @db.VarChar(120)
   image     String   @default("")
-  size      String   @db.VarChar(12)
+  size      String   @db.VarChar(40)
   qty       Int
   unitList  Int // list price per unit
   unitPrice Int // price per unit after discounts

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { getProducts, getSiteContent } from "@/lib/data";
-import { filterProducts, parseQuery, priceBounds } from "@/lib/catalogue";
+import { facetsOf, filterProducts, parseQuery, priceBounds } from "@/lib/catalogue";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ShopControls } from "@/components/shop/ShopControls";
 
@@ -21,9 +21,10 @@ export default function ShopPage({ searchParams }: PageProps<"/shop">) {
 async function Shop({ searchParams }: { searchParams: PageProps<"/shop">["searchParams"] }) {
   const [raw, all, content] = await Promise.all([searchParams, getProducts(), getSiteContent()]);
   const { sections } = content;
-  const query = parseQuery(raw, sections);
+  const facets = facetsOf(all);
+  const query = parseQuery(raw, sections, facets);
   const list = filterProducts(all, query);
-  const bounds = priceBounds(all, query.size);
+  const bounds = priceBounds(all, query.size, query.unit);
   const activeSec = sections.find((s) => s.id === query.section);
   const activeSub = activeSec?.children.find((c) => c.id === query.sub);
   const sectionEmpty = !!activeSec && !all.some((p) => p.section === activeSec.id && (!activeSub || p.sub === activeSub.id));
@@ -51,7 +52,7 @@ async function Shop({ searchParams }: { searchParams: PageProps<"/shop">["search
       {query.best && title("Maison Selections", "Best Sellers", "The scents our patrons return to — our most-loved fragrances, gathered in one place.")}
       {!query.best && activeSec && title(activeSub ? activeSec.name : "Collection", activeSub ? activeSub.name : activeSec.name, activeSub ? undefined : activeSec.blurb)}
 
-      <ShopControls query={query} sections={sections} bounds={bounds} hasSale={all.some((p) => p.onSale)}>
+      <ShopControls query={query} sections={sections} bounds={bounds} facets={facets} hasSale={all.some((p) => p.onSale)}>
         <div style={{ paddingBottom: 16, fontSize: 14, color: "var(--lux-ink-muted)" }} aria-live="polite">
           <span style={{ color: "var(--lux-ink)", fontWeight: 600 }}>{list.length}</span> product{list.length !== 1 ? "s" : ""}
         </div>

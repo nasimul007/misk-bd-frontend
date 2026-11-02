@@ -2,6 +2,7 @@ export type Variant = { size: string; price: number };
 
 export type Product = {
   id: string; // public slug
+  unit: string; // ml | g | kg | piece | pack | set | box (see lib/units.ts)
   title: string;
   arabic: string;
   image: string;

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, ariaFor } from "@/components/checkout/Field";
 import { ImageField } from "@/components/admin/ImageField";
 import { saveProductAction, type ProductInput } from "@/app/actions/admin";
+import { UNITS, unitOf } from "@/lib/units";
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml"];
+const MAX_OPTIONS = 8;
 
 export type ProductFormData = Omit<ProductInput, "variants"> & { variants: { size: string; price: string }[] };
 
@@ -22,9 +24,14 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
 
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) => { setF((p) => ({ ...p, [k]: v })); setSaved(false); };
   const subs = sections.find((x) => x.slug === f.sectionSlug)?.children ?? [];
-  const price = (size: string) => f.variants.find((v) => v.size === size)?.price;
-  const setPrice = (size: string, value: string) =>
-    set("variants", value === "" && !f.variants.some((v) => v.size === size) ? f.variants : [...f.variants.filter((v) => v.size !== size), ...(value === "" ? [] : [{ size, price: value }])]);
+  const unit = unitOf(f.unit);
+  const [amount, setAmount] = useState("");
+  const has = (label: string) => f.variants.some((v) => v.size.toLowerCase() === label.toLowerCase());
+  const full = f.variants.length >= MAX_OPTIONS;
+  const addOption = (label: string) => { if (label && !has(label) && !full) set("variants", [...f.variants, { size: label, price: "" }]); };
+  const addAmount = () => { const n = Number(amount); if (Number.isFinite(n) && n > 0) { addOption(unit.label(n)); setAmount(""); } };
+  const edit = (i: number, patch: Partial<{ size: string; price: string }>) => set("variants", f.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+  const move = (i: number, d: -1 | 1) => { const to = i + d; if (to < 0 || to >= f.variants.length) return; const next = [...f.variants]; [next[i], next[to]] = [next[to], next[i]]; set("variants", next); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +51,7 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
   };
 
   const section = { borderRadius: 16, padding: 20 } as const;
+  const iconBtn = { width: 32, height: 32, borderRadius: 8, border: "1px solid var(--lux-line)", background: "transparent", color: "var(--lux-ink)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" } as const;
   const h = { margin: "0 0 14px", fontSize: 13, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--lux-ink-muted)", fontWeight: 500 } as const;
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-5" style={{ maxWidth: 820 }}>
@@ -72,21 +80,50 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
       </section>
 
       <section className="lux-surface" style={section}>
-        <h2 style={h}>Sizes and prices (৳)</h2>
-        <div className="grid gap-3.5 sm:grid-cols-5">
-          {SIZES.map((s) => (
-            <Field key={s} id={`pf-p-${s}`} label={s}>
-              <input id={`pf-p-${s}`} inputMode="numeric" className="lux-input" placeholder="Not sold" value={price(s) ?? ""} onChange={(e) => setPrice(s, e.target.value.replace(/\D/g, ""))} />
-            </Field>
-          ))}
+        <h2 style={h}>Sold in, options and prices (৳)</h2>
+        <div className="grid gap-3.5 sm:grid-cols-[1fr_1fr]">
+          <Field id="pf-unit" label="Sold in *">
+            <select id="pf-unit" className="lux-input" value={f.unit} onChange={(e) => set("unit", e.target.value)}>
+              {UNITS.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </Field>
+          <Field id="pf-amount" label={`Add an option (${unit.measured ? `amount in ${unit.id}` : `number of ${unit.tab}`})`}>
+            <div className="flex gap-2">
+              <input id="pf-amount" inputMode="decimal" className="lux-input" placeholder={String(unit.presets[1] ?? unit.presets[0])} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAmount(); } }} />
+              <button type="button" className="lux-btn lux-focus flex items-center gap-1" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }} disabled={full} onClick={addAmount}><Plus size={14} /> Add</button>
+            </div>
+          </Field>
         </div>
-        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Leave a size empty to stop selling it. Discounts are set on the Discounts page.</p>
+        <div className="flex flex-wrap items-center gap-2" style={{ margin: "12px 0 14px" }}>
+          <span style={{ fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Quick add:</span>
+          {unit.presets.map((n) => { const l = unit.label(n); return (
+            <button key={n} type="button" disabled={has(l) || full} onClick={() => addOption(l)} className="lux-focus" style={{ padding: "4px 12px", borderRadius: 999, border: "1px solid var(--lux-line)", background: "transparent", color: has(l) ? "var(--lux-ink-muted)" : "var(--lux-ink)", fontSize: 13, cursor: has(l) ? "default" : "pointer", opacity: has(l) ? 0.5 : 1 }}>{l}</button>
+          ); })}
+        </div>
+        {f.variants.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 13.5, color: "var(--lux-warning)" }}>Add at least one option. A product with one option shows no size picker in the shop.</p>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+            {f.variants.map((v, i) => (
+              <li key={i} className="grid items-center gap-2.5" style={{ gridTemplateColumns: "1fr 150px auto" }}>
+                <input aria-label={`Option ${i + 1} name`} className="lux-input" maxLength={40} placeholder="e.g. 50g or Pack of 10" value={v.size} onChange={(e) => edit(i, { size: e.target.value })} />
+                <input aria-label={`Price of ${v.size || `option ${i + 1}`}`} inputMode="numeric" className="lux-input" placeholder="Price ৳" value={v.price} onChange={(e) => edit(i, { price: e.target.value.replace(/\D/g, "") })} />
+                <span className="flex gap-1">
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="lux-focus" style={iconBtn}><ArrowUp size={14} /></button>
+                  <button type="button" aria-label="Move down" disabled={i === f.variants.length - 1} onClick={() => move(i, 1)} className="lux-focus" style={iconBtn}><ArrowDown size={14} /></button>
+                  <button type="button" aria-label={`Remove ${v.size || "option"}`} onClick={() => set("variants", f.variants.filter((_, j) => j !== i))} className="lux-focus" style={iconBtn}><X size={14} /></button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Up to {MAX_OPTIONS} options. The first one is what the quick &ldquo;Add to Cart&rdquo; button on a shop card adds, so put the smallest first. Discounts are set on the Discounts page.</p>
       </section>
 
       <section className="lux-surface" style={section}>
         <h2 style={h}>Stock and visibility</h2>
         <div className="grid items-end gap-3.5 sm:grid-cols-3">
-          <Field id="pf-stock" label="In stock *"><input id="pf-stock" inputMode="numeric" className="lux-input" value={String(f.stock)} onChange={(e) => set("stock", e.target.value.replace(/\D/g, ""))} /></Field>
+          <Field id="pf-stock" label="Items in stock *"><input id="pf-stock" inputMode="numeric" className="lux-input" value={String(f.stock)} onChange={(e) => set("stock", e.target.value.replace(/\D/g, ""))} /></Field>
           <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14, paddingBottom: 12 }}><input type="checkbox" checked={f.active} onChange={(e) => set("active", e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> Visible in the shop</label>
           <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14, paddingBottom: 12 }}><input type="checkbox" checked={f.bestseller} onChange={(e) => set("bestseller", e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> Best seller</label>
         </div>

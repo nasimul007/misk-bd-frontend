@@ -11,7 +11,7 @@ export default async function NewProduct() {
       <PageHead title="Add product" />
       <ProductForm
         sections={sections.map((x) => ({ slug: x.slug, name: x.name, children: x.subsections }))}
-        initial={{ slug: null, title: "", titleAr: "", description: "", category: "", scentFamily: "", sectionSlug: "", subsectionSlug: "", stock: "0", bestseller: false, active: true, tags: "", lastingHours: "", projection: "", concentration: "", origin: "", variants: [{ size: "6ml", price: "" }], images: [] }}
+        initial={{ slug: null, unit: "ml", title: "", titleAr: "", description: "", category: "", scentFamily: "", sectionSlug: "", subsectionSlug: "", stock: "0", bestseller: false, active: true, tags: "", lastingHours: "", projection: "", concentration: "", origin: "", variants: [], images: [] }}
       />
     </>
   );

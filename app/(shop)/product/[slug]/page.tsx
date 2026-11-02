@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Check, ChevronRight, ShieldCheck, Star } from "lucide-react";
 import { getProduct, getProductSlugs, getRelated, getSiteContent } from "@/lib/data";
 import { Badge } from "@/components/ui/Badge";
+import { unitOf } from "@/lib/units";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ProductBuy } from "@/components/product/ProductBuy";
 import { ProductGallery } from "@/components/product/ProductGallery";
@@ -33,7 +34,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
     ["Longevity", product.lasting > 0 ? `${product.lasting} hours` : ""],
     ["Sillage / projection", product.projection],
     ["Key sourcing", product.origin],
-    ["Available sizes", product.variants.map((v) => v.size).join(" · ")],
+    [unitOf(product.unit).measured ? "Available sizes" : "Available options", product.variants.map((v) => v.size).join(" · ")],
   ] as const).filter(([, v]) => v);
   const showSpecs = sec?.showSpecs !== false;
 

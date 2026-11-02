@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { StockPill } from "@/components/ui/StockPill";
 import { useMoney } from "@/lib/currency";
 import { useCart } from "@/lib/cart";
+import { unitOf } from "@/lib/units";
 import type { PricedProduct } from "@/lib/types";
 
 /** Price, size picker, quantity stepper and add-to-cart. */
@@ -14,7 +15,10 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
   const money = useMoney();
   const { title, stock, card, sizes } = product;
   const add = useCart((s) => s.add);
-  const [size, setSize] = useState<string | null>(null);
+  // One option means nothing to choose: it is selected for the shopper and no picker is shown.
+  const single = sizes.length === 1;
+  const [chosen, setSize] = useState<string | null>(null);
+  const size = single ? sizes[0].size : chosen;
   const [qty, setQty] = useState(1);
   const info = size ? sizes.find((s) => s.size === size) : undefined;
 
@@ -32,7 +36,7 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
           {was > price && <s style={{ fontSize: 18, color: "var(--lux-ink-muted)" }}>{money(was * qty)}</s>}
           {qty > 1 && <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>({money(price)} each &times; {qty})</span>}
           {qty === 1 && !size && card.maxPrice > card.price && <span style={{ fontSize: 18, color: "var(--lux-ink-muted)" }}>&ndash; {money(card.maxPrice)}</span>}
-          {size && qty === 1 && <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>for {size}</span>}
+          {size && qty === 1 && <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>{single ? size : `for ${size}`}</span>}
           {saleLabel && <Badge tone="danger" style={{ background: "var(--lux-danger)", color: "#fff", border: "none", alignSelf: "center" }}>{saleLabel}</Badge>}
         </div>
         <StockPill stock={stock} />
@@ -44,13 +48,14 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
       {intro}
 
       <div className="glass-card flex flex-col gap-5" style={{ borderRadius: 16, padding: 24 }}>
+        {!single && (
         <div className="flex flex-col gap-3">
-          <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>Size</span>
+          <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>{unitOf(product.unit).measured ? "Size" : "Option"}</span>
           <div className="flex flex-wrap gap-2.5">
             {sizes.map((s) => {
               const on = size === s.size;
               return (
-                <button key={s.size} type="button" onClick={() => setSize(s.size)} aria-pressed={on} aria-label={`${s.size}, ${money(s.price)}`} className="flex flex-col items-center gap-0.5" style={{ minWidth: 78, borderRadius: 12, padding: "9px 14px", cursor: "pointer", transition: "all .2s", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink)" }}>
+                <button key={s.size} type="button" onClick={() => setSize(s.size)} aria-pressed={on} aria-label={`${s.size}, ${money(s.price)}`} className="flex flex-col items-center gap-0.5" style={{ minWidth: 78, maxWidth: "100%", borderRadius: 12, padding: "9px 14px", cursor: "pointer", transition: "all .2s", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink)" }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{s.size}</span>
                   <span style={{ fontSize: 12, color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }}>{money(s.price)}{s.original > s.price && <s style={{ marginLeft: 6, fontSize: 10.5, opacity: 0.7 }}>{money(s.original)}</s>}</span>
                 </button>
@@ -59,6 +64,7 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
           </div>
           {!size && <p style={{ fontSize: 12, color: "var(--lux-warning)", margin: 0 }}>Select a size to continue.</p>}
         </div>
+        )}
         <div className="flex flex-wrap gap-3.5">
           <div className="flex items-center" style={{ height: 52, borderRadius: 12, border: "1px solid var(--lux-line)", background: "color-mix(in oklch, var(--lux-bg-3) 40%, transparent)", padding: 4 }}>
             <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="inline-flex items-center justify-center" style={{ ...stepBtn, color: "var(--lux-ink)" }} aria-label="Decrease quantity"><Minus size={15} /></button>

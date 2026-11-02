@@ -3,9 +3,12 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { Discount, Product } from "@/lib/types";
 
+// Options show in the order the admin set; price only breaks ties.
+const variantOrder: Prisma.ProductVariantOrderByWithRelationInput[] = [{ position: "asc" }, { priceBdt: "asc" }];
+
 export const productArgs = {
   include: {
-    variants: { orderBy: { priceBdt: "asc" } },
+    variants: { orderBy: variantOrder },
     images: { orderBy: { position: "asc" } },
     section: { select: { slug: true } },
     subsection: { select: { slug: true } },
@@ -40,6 +43,7 @@ export const toProduct = (p: ProductRow): Product => {
   const prices = p.variants.map((v) => v.priceBdt);
   return {
     id: p.slug,
+    unit: p.unit,
     title: p.title,
     arabic: p.titleAr ?? "",
     image: gallery[0] ?? "",

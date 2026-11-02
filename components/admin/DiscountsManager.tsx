@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/checkout/Field";
 import { deleteDiscountAction, saveDiscountAction } from "@/app/actions/admin";
 
-const SIZES = ["1ml", "3ml", "6ml", "12ml"];
 
 export type DiscountRow = {
   id: string; name: string; scope: "product" | "category" | "all"; target: string; targetLabel: string;
@@ -20,7 +19,7 @@ const blank: Draft = { id: null, name: "", scope: "all", target: "", type: "perc
 const describe = (d: DiscountRow) =>
   `${d.type === "percent" ? `${d.value}%` : `৳${d.value}`} off ${d.scope === "all" ? "everything" : d.scope === "category" ? d.target : d.targetLabel}${d.sizes.length ? ` (${d.sizes.join(", ")})` : ""}`;
 
-export function DiscountsManager({ rows, products }: { rows: DiscountRow[]; products: { slug: string; title: string }[] }) {
+export function DiscountsManager({ rows, products, sizeOptions }: { rows: DiscountRow[]; products: { slug: string; title: string }[]; sizeOptions: string[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
@@ -74,9 +73,9 @@ export function DiscountsManager({ rows, products }: { rows: DiscountRow[]; prod
             <Field id="dc-to" label="Ends (optional)"><input id="dc-to" type="date" className="lux-input" value={draft.endsOn} onChange={(e) => set("endsOn", e.target.value)} /></Field>
           </div>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-ink-muted)", marginBottom: 6 }}>Sizes (none ticked = all sizes)</legend>
+            <legend style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-ink-muted)", marginBottom: 6 }}>Options (none ticked = all options)</legend>
             <div className="flex flex-wrap gap-4">
-              {SIZES.map((s) => (
+              {sizeOptions.map((s) => (
                 <label key={s} className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14 }}>
                   <input type="checkbox" checked={draft.sizes.includes(s)} onChange={(e) => set("sizes", e.target.checked ? [...draft.sizes, s] : draft.sizes.filter((x) => x !== s))} style={{ accentColor: "var(--lux-gold)" }} /> {s}
                 </label>

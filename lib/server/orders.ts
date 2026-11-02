@@ -44,7 +44,7 @@ export function parseInput(raw: unknown): PlaceOrderInput | null {
     if (typeof slug !== "string" || typeof size !== "string" || typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) return null;
     const key = `${slug}__${size}`;
     const prev = merged.get(key);
-    merged.set(key, { slug: slug.slice(0, 120), size: size.slice(0, 12), qty: Math.min(MAX_QTY, (prev?.qty ?? 0) + qty) });
+    merged.set(key, { slug: slug.slice(0, 120), size: size.slice(0, 40), qty: Math.min(MAX_QTY, (prev?.qty ?? 0) + qty) });
   }
 
   const f = form as Record<string, unknown>;
