@@ -5,13 +5,16 @@ import { requireStaffPage } from "@/lib/server/staff-session";
 
 export default async function InventoryPage() {
   await requireStaffPage();
-  const [products, log] = await Promise.all([
-    db.product.findMany({ orderBy: [{ active: "desc" }, { title: "asc" }], select: { slug: true, title: true, stock: true, active: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } } }),
+  const [options, log] = await Promise.all([
+    db.productVariant.findMany({
+      orderBy: [{ product: { active: "desc" } }, { product: { title: "asc" } }, { position: "asc" }],
+      select: { size: true, stock: true, product: { select: { slug: true, title: true, active: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } }, _count: { select: { variants: true } } } } },
+    }),
     db.inventoryAdjustment.findMany({ orderBy: { at: "desc" }, take: 100, include: { product: { select: { title: true } } } }),
   ]);
   return (
     <>
-      <InventoryManager rows={products.map((p) => ({ slug: p.slug, title: p.title, stock: p.stock, active: p.active, image: p.images[0]?.url ?? "" }))} />
+      <InventoryManager rows={options.map((o) => ({ slug: o.product.slug, title: o.product.title, size: o.size, single: o.product._count.variants === 1, stock: o.stock, active: o.product.active, image: o.product.images[0]?.url ?? "" }))} />
       <h3 className="font-display" style={{ fontSize: 17, fontWeight: 500, margin: "28px 0 12px" }}>Adjustment history</h3>
       <Panel>
         {log.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No stock changes yet.</p> : (
@@ -21,7 +24,7 @@ export default async function InventoryPage() {
               {log.map((l) => (
                 <tr key={l.id}>
                   <td style={{ ...td, color: "var(--lux-ink-muted)" }}>{dateTime(l.at)}</td>
-                  <td style={td}>{l.product.title}</td>
+                  <td style={td}>{l.product.title}{l.option && <span style={{ color: "var(--lux-ink-muted)" }}> · {l.option}</span>}</td>
                   <td style={{ ...td, fontWeight: 600, color: l.delta > 0 ? "var(--lux-gold)" : "var(--lux-ink)" }}>{l.delta > 0 ? `+${l.delta}` : l.delta}</td>
                   <td style={td}>{l.stockAfter}</td>
                   <td style={{ ...td, color: "var(--lux-ink-muted)" }}>{l.reason}</td>

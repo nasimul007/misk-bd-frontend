@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { orderNo } from "@/lib/server/orders";
+import { orderNo, restockLines } from "@/lib/server/orders";
 import { createSession, sslConfig, validatePayment } from "@/lib/server/sslcommerz";
 
 /** How long an online order may wait for its payment before stock goes back on the shelf. */
@@ -126,12 +126,7 @@ export async function expireUnpaid(limit = 50): Promise<number> {
       const o = await tx.order.findUniqueOrThrow({ where: { id }, include: { items: true } });
       if (o.status !== "pending" || o.paymentStatus === "paid" || !o.paymentDueAt || o.paymentDueAt > new Date()) return false;
 
-      const per = new Map<string, number>();
-      for (const i of o.items) if (i.productId) per.set(i.productId, (per.get(i.productId) ?? 0) + i.qty);
-      for (const [productId, qty] of per) {
-        const p = await tx.product.update({ where: { id: productId }, data: { stock: { increment: qty } } });
-        await tx.inventoryAdjustment.create({ data: { productId, delta: qty, stockAfter: p.stock, reason: `Order ${orderNo(o.number)} cancelled: payment not received`, orderNumber: o.number, username: "system" } });
-      }
+      await restockLines(tx, o.items, o.number, `Order ${orderNo(o.number)} cancelled: payment not received`, { username: "system" });
       await tx.payment.updateMany({ where: { orderId: id, status: "pending" }, data: { status: "failed" } });
       await tx.order.update({ where: { id }, data: { status: "cancelled", cancelledAt: new Date(), paymentStatus: "failed", paymentDueAt: null } });
       await tx.orderStatusHistory.create({ data: { orderId: id, status: "cancelled", note: "Payment was not received in time" } });

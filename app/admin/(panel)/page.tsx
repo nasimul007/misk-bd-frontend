@@ -19,14 +19,15 @@ export default async function Dashboard() {
   const weekAgo = new Date(startOfDay);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
-  const [byStatus, today, week, cod, top, low, recent] = await Promise.all([
+  const [byStatus, today, week, cod, top, low, recent, lowCount] = await Promise.all([
     db.order.groupBy({ by: ["status"], _count: true }),
     db.order.aggregate({ where: { createdAt: { gte: startOfDay }, status: { not: "cancelled" } }, _count: true, _sum: { total: true } }),
     db.order.aggregate({ where: { createdAt: { gte: weekAgo }, status: { notIn: ["cancelled", "returned"] } }, _count: true, _sum: { total: true } }),
     db.order.groupBy({ by: ["paymentMethod"], where: { createdAt: { gte: weekAgo }, status: { notIn: ["cancelled", "returned"] } }, _count: true }),
     db.product.findMany({ where: { soldCount: { gt: 0 } }, orderBy: { soldCount: "desc" }, take: 5, select: { slug: true, title: true, soldCount: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } } }),
-    db.product.findMany({ where: { active: true, stock: { lte: LOW_STOCK } }, orderBy: { stock: "asc" }, select: { slug: true, title: true, stock: true }, take: 10 }),
+    db.productVariant.findMany({ where: { stock: { lte: LOW_STOCK }, product: { active: true } }, orderBy: [{ stock: "asc" }, { product: { title: "asc" } }], select: { size: true, stock: true, product: { select: { slug: true, title: true, _count: { select: { variants: true } } } } }, take: 10 }),
     db.order.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+    db.productVariant.count({ where: { stock: { lte: LOW_STOCK }, product: { active: true } } }),
   ]);
   const count = (s: string) => byStatus.find((b) => b.status === s)?._count ?? 0;
   const stats: [string, string, string][] = [
@@ -41,7 +42,7 @@ export default async function Dashboard() {
     ["Orders (7 days)", String(week._count)],
     ...(owner ? ([["Revenue (7 days)", money(week._sum.total ?? 0)]] as [string, string][]) : []),
     ["COD vs prepaid", `${codCount} / ${prepaid}`],
-    ["Low stock", String(low.length)],
+    ["Low stock", String(lowCount)],
   ];
 
   return (
@@ -50,7 +51,7 @@ export default async function Dashboard() {
         {weekly.map(([label, value]) => (
           <div key={label} className="lux-surface" style={{ borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>{label}</span>
-            <span className="font-display" style={{ fontSize: 28, color: label.startsWith("Revenue") ? "var(--lux-gold)" : label === "Low stock" && low.length ? "var(--lux-danger)" : undefined }}>{value}</span>
+            <span className="font-display" style={{ fontSize: 28, color: label.startsWith("Revenue") ? "var(--lux-gold)" : label === "Low stock" && lowCount ? "var(--lux-danger)" : undefined }}>{value}</span>
           </div>
         ))}
       </div>
@@ -74,10 +75,10 @@ export default async function Dashboard() {
           <h3 className="font-display" style={{ margin: "0 0 12px", fontSize: 17, fontWeight: 500 }}>Low stock alerts</h3>
           {low.length === 0 ? <p style={{ margin: 0, fontSize: 14, color: "var(--lux-ink-muted)" }}>All products are well stocked.</p> : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              {low.map((p) => (
-                <li key={p.slug} className="flex items-center gap-2.5">
-                  <Link href={owner ? `/admin/products/${p.slug}` : "/admin/inventory"} className="lux-focus" style={{ flex: 1, fontSize: 14 }}>{p.title}</Link>
-                  <StockPill stock={p.stock} />
+              {low.map((o) => (
+                <li key={`${o.product.slug}-${o.size}`} className="flex items-center gap-2.5">
+                  <Link href={owner ? `/admin/products/${o.product.slug}` : "/admin/inventory"} className="lux-focus" style={{ flex: 1, fontSize: 14 }}>{o.product.title}{o.product._count.variants > 1 && <span style={{ color: "var(--lux-ink-muted)" }}> · {o.size}</span>}</Link>
+                  <StockPill stock={o.stock} />
                 </li>
               ))}
             </ul>

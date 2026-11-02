@@ -19,9 +19,9 @@ export default async function EditProduct({ params }: PageProps<"/admin/products
         sections={sections.map((x) => ({ slug: x.slug, name: x.name, children: x.subsections }))}
         initial={{
           slug: p.slug, unit: p.unit, title: p.title, titleAr: p.titleAr ?? "", description: p.description, category: p.category, scentFamily: p.scentFamily ?? "",
-          sectionSlug: p.section?.slug ?? "", subsectionSlug: p.subsection?.slug ?? "", stock: String(p.stock), bestseller: p.bestseller, active: p.active, tags: p.tags.join(", "),
+          sectionSlug: p.section?.slug ?? "", subsectionSlug: p.subsection?.slug ?? "", bestseller: p.bestseller, active: p.active, tags: p.tags.join(", "),
           lastingHours: p.lastingHours === null ? "" : String(p.lastingHours), projection: p.projection ?? "", concentration: p.concentration ?? "", origin: p.origin ?? "",
-          variants: p.variants.map((v) => ({ size: v.size, price: String(v.priceBdt) })), images: p.images.map((i) => i.url),
+          variants: p.variants.map((v) => ({ size: v.size, price: String(v.priceBdt), stock: String(v.stock) })), images: p.images.map((i) => i.url),
         }}
       />
     </>

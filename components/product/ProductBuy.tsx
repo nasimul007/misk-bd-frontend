@@ -13,12 +13,14 @@ import type { PricedProduct } from "@/lib/types";
 /** Price, size picker, quantity stepper and add-to-cart. */
 export function ProductBuy({ product, intro }: { product: PricedProduct; intro?: ReactNode }) {
   const money = useMoney();
-  const { title, stock, card, sizes } = product;
+  const { title, card, sizes } = product;
+  const stockOf = (sz: string) => product.variants.find((v) => v.size === sz)?.stock ?? 0; // each option has its own stock
   const add = useCart((s) => s.add);
   // One option means nothing to choose: it is selected for the shopper and no picker is shown.
   const single = sizes.length === 1;
   const [chosen, setSize] = useState<string | null>(null);
   const size = single ? sizes[0].size : chosen;
+  const stock = size ? stockOf(size) : product.stock; // the chosen option's stock, or the total until one is chosen
   const [qty, setQty] = useState(1);
   const info = size ? sizes.find((s) => s.size === size) : undefined;
 
@@ -55,9 +57,10 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
             {sizes.map((s) => {
               const on = size === s.size;
               return (
-                <button key={s.size} type="button" onClick={() => setSize(s.size)} aria-pressed={on} aria-label={`${s.size}, ${money(s.price)}`} className="flex flex-col items-center gap-0.5" style={{ minWidth: 78, maxWidth: "100%", borderRadius: 12, padding: "9px 14px", cursor: "pointer", transition: "all .2s", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink)" }}>
+                <button key={s.size} type="button" onClick={() => { setSize(s.size); setQty(1); }} disabled={stockOf(s.size) <= 0} aria-pressed={on} aria-label={`${s.size}, ${money(s.price)}`} className="flex flex-col items-center gap-0.5" style={{ minWidth: 78, maxWidth: "100%", borderRadius: 12, padding: "9px 14px", cursor: stockOf(s.size) <= 0 ? "not-allowed" : "pointer", opacity: stockOf(s.size) <= 0 ? 0.45 : 1, transition: "all .2s", border: on ? "1px solid var(--lux-gold)" : "1px solid var(--lux-line)", background: on ? "var(--lux-gold-soft)" : "transparent", color: on ? "var(--lux-gold)" : "var(--lux-ink)" }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{s.size}</span>
                   <span style={{ fontSize: 12, color: on ? "var(--lux-gold)" : "var(--lux-ink-muted)" }}>{money(s.price)}{s.original > s.price && <s style={{ marginLeft: 6, fontSize: 10.5, opacity: 0.7 }}>{money(s.original)}</s>}</span>
+                  {stockOf(s.size) <= 0 && <span style={{ fontSize: 10.5, color: "var(--lux-danger)" }}>Sold out</span>}
                 </button>
               );
             })}

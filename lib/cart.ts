@@ -56,20 +56,23 @@ export const useCart = create<CartState>()(
       toast: null,
 
       add: (product, size, qty = 1) => {
-        const info = product.sizes.find((s) => s.size === size) ?? product.sizes[0];
-        if (!info || product.stock <= 0) {
+        // Stock is per option. With no option given (the shop card's quick add) take the first one that is available.
+        const left = (sz: string) => product.variants.find((v) => v.size === sz)?.stock ?? 0;
+        const info = product.sizes.find((s) => s.size === size) ?? product.sizes.find((s) => left(s.size) > 0) ?? product.sizes[0];
+        const stock = info ? left(info.size) : 0;
+        if (!info || stock <= 0) {
           set({ toast: `${product.title} is out of stock` });
           return;
         }
         const key = `${product.id}__${info.size}`;
         const found = get().items.find((i) => i.key === key);
-        const next = Math.min(product.stock, (found?.qty ?? 0) + qty);
+        const next = Math.min(stock, (found?.qty ?? 0) + qty);
         const capped = found ? next === found.qty : next < qty;
         set((s) => ({
           items: found
-            ? s.items.map((i) => (i.key === key ? { ...i, qty: next, price: info.price, original: info.original, stock: product.stock } : i))
-            : [...s.items, { key, id: product.id, title: product.title, image: product.image, size: info.size, price: info.price, original: info.original, qty: next, stock: product.stock }],
-          toast: capped ? `Only ${product.stock} of ${product.title} in stock` : `${product.title} · ${info.size} added to cart`,
+            ? s.items.map((i) => (i.key === key ? { ...i, qty: next, price: info.price, original: info.original, stock } : i))
+            : [...s.items, { key, id: product.id, title: product.title, image: product.image, size: info.size, price: info.price, original: info.original, qty: next, stock }],
+          toast: capped ? `Only ${stock} of ${product.title} (${info.size}) in stock` : `${product.title} · ${info.size} added to cart`,
         }));
       },
       remove: (key) => set((s) => ({ items: s.items.filter((i) => i.key !== key) })),

@@ -14,7 +14,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
   const skuNo = /^(mb-)?\d{1,6}$/i.test(q) ? Number(q.replace(/\D/g, "")) : null;
   const products = await db.product.findMany({
     where: q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, ...(skuNo !== null ? [{ skuNo }] : [])] } : {},
-    include: { variants: { select: { priceBdt: true } }, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } }, section: { select: { name: true } } },
+    include: { variants: { select: { priceBdt: true, size: true, stock: true }, orderBy: { position: "asc" } }, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } }, section: { select: { name: true } } },
     orderBy: [{ active: "desc" }, { createdAt: "desc" }],
   });
   return (
@@ -43,7 +43,16 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
                     </td>
                     <td style={{ ...td, color: "var(--lux-ink-muted)" }}>MB-{String(p.skuNo).padStart(4, "0")}</td>
                     <td style={td}>{prices.length ? `${money(Math.min(...prices))}${prices.length > 1 ? ` – ${money(Math.max(...prices))}` : ""}` : "—"}</td>
-                    <td style={td}><StockStepper slug={p.slug} stock={p.stock} /></td>
+                    <td style={td}>
+                      <div className="flex flex-col gap-2">
+                        {p.variants.map((v) => (
+                          <div key={v.size} className="flex items-center gap-2.5">
+                            {p.variants.length > 1 && <span style={{ minWidth: 70, fontSize: 12.5, color: "var(--lux-ink-muted)" }}>{v.size}</span>}
+                            <StockStepper slug={p.slug} size={v.size} stock={v.stock} />
+                          </div>
+                        ))}
+                      </div>
+                    </td>
                     <td style={td}><Badge tone={p.active ? "success" : "glass"}>{p.active ? "Active" : "Archived"}</Badge></td>
                     <td style={td}><ProductActions slug={p.slug} title={p.title} active={p.active} /></td>
                   </tr>

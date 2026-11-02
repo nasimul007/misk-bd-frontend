@@ -1,4 +1,4 @@
-export type Variant = { size: string; price: number };
+export type Variant = { size: string; price: number; stock: number }; // stock of this option
 
 export type Product = {
   id: string; // public slug
@@ -13,7 +13,7 @@ export type Product = {
   family: string;
   tags: string[];
   bestseller?: boolean;
-  stock: number;
+  stock: number; // total over all options
   description: string;
   lasting: number;
   projection: string;

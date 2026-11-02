@@ -66,7 +66,8 @@ type Tx = Prisma.TransactionClient;
 async function priceLines(tx: Tx, lines: OrderLineInput[]) {
   const slugs = [...new Set(lines.map((l) => l.slug))];
 
-  // Lock the product rows (in a fixed order, so two orders can't deadlock) before reading stock.
+  // Lock the product rows (in a fixed order, so two orders can't deadlock) before reading stock. This lock is the
+  // one mutex for a product's options: orders and staff stock changes both take it before touching stock.
   const locked = await tx.$queryRaw<{ id: string; slug: string }[]>(
     Prisma.sql`SELECT id, slug FROM products WHERE slug IN (${Prisma.join(slugs)}) AND active ORDER BY id FOR UPDATE`,
   );
@@ -76,7 +77,7 @@ async function priceLines(tx: Tx, lines: OrderLineInput[]) {
 
   const priced = [];
   const fresh: FreshLine[] = [];
-  const wanted = new Map<string, number>(); // qty per product (stock is per product, not per size)
+  const wanted = new Map<string, { slug: string; size: string; qty: number }>(); // qty per option: each size has its own stock
   let problem: "unavailable" | "stock" | null = null;
   let message = "";
 
@@ -89,15 +90,19 @@ async function priceLines(tx: Tx, lines: OrderLineInput[]) {
       continue;
     }
     const info = priceInfo(product, l.size, discounts);
-    wanted.set(l.slug, (wanted.get(l.slug) ?? 0) + l.qty);
-    fresh.push({ slug: l.slug, size: l.size, price: info.price, original: info.original, stock: row.stock });
-    priced.push({ line: l, row, product, info });
+    const variant = row.variants.find((v) => v.size === l.size)!;
+    const key = `${l.slug}__${l.size}`;
+    wanted.set(key, { slug: l.slug, size: l.size, qty: (wanted.get(key)?.qty ?? 0) + l.qty });
+    fresh.push({ slug: l.slug, size: l.size, price: info.price, original: info.original, stock: variant.stock });
+    priced.push({ line: l, row, variant, product, info });
   }
-  for (const [slug, qty] of wanted) {
+  for (const { slug, size, qty } of wanted.values()) {
     const row = bySlug.get(slug)!;
-    if (qty > row.stock && problem !== "unavailable") {
+    const have = row.variants.find((v) => v.size === size)!.stock;
+    const name = row.variants.length > 1 ? `${row.title} (${size})` : row.title;
+    if (qty > have && problem !== "unavailable") {
       problem = "stock";
-      message = row.stock <= 0 ? `${row.title} is out of stock.` : `Only ${row.stock} of ${row.title} left in stock.`;
+      message = have <= 0 ? `${name} is out of stock.` : `Only ${have} of ${name} left in stock.`;
     }
   }
   return { priced, fresh, problem, message };
@@ -165,11 +170,15 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
       },
     });
 
-    const perProduct = new Map<string, number>();
-    for (const p of priced) perProduct.set(p.row.id, (perProduct.get(p.row.id) ?? 0) + p.line.qty);
-    for (const [id, qty] of perProduct) {
-      const p = await tx.product.update({ where: { id }, data: { stock: { decrement: qty } } });
-      await tx.inventoryAdjustment.create({ data: { productId: id, delta: -qty, stockAfter: p.stock, reason: `Order ${orderNo(order.number)} placed`, orderNumber: order.number, username: "system" } });
+    // Take each option's units off its own stock (several lines can share one option).
+    const perOption = new Map<string, { productId: string; size: string; qty: number }>();
+    for (const p of priced) {
+      const prev = perOption.get(p.variant.id);
+      perOption.set(p.variant.id, { productId: p.row.id, size: p.variant.size, qty: (prev?.qty ?? 0) + p.line.qty });
+    }
+    for (const [id, o] of perOption) {
+      const v = await tx.productVariant.update({ where: { id }, data: { stock: { decrement: o.qty } } });
+      await tx.inventoryAdjustment.create({ data: { productId: o.productId, option: o.size, delta: -o.qty, stockAfter: v.stock, reason: `Order ${orderNo(order.number)} placed`, orderNumber: order.number, username: "system" } });
     }
     return { ok: true, orderNo: orderNo(order.number), token };
   });
@@ -256,6 +265,31 @@ export async function claimOrders(customerId: string, refs: Ref[]): Promise<void
   if (numbers.length) await db.order.updateMany({ where: { number: { in: numbers }, customerId: null }, data: { customerId } });
 }
 
+
+/**
+ * Puts the units of an order's lines back on the shelf, each onto the option it was taken from, and logs it.
+ * A line whose product or option no longer exists is skipped: there is nothing left to give the stock back to.
+ */
+export async function restockLines(
+  tx: Tx,
+  items: { productId: string | null; size: string; qty: number }[],
+  orderNumber: number,
+  reason: string,
+  by: { staffId?: string; username: string },
+) {
+  const per = new Map<string, { productId: string; size: string; qty: number }>();
+  for (const i of items) {
+    if (!i.productId) continue;
+    const k = `${i.productId}__${i.size}`;
+    per.set(k, { productId: i.productId, size: i.size, qty: (per.get(k)?.qty ?? 0) + i.qty });
+  }
+  for (const o of per.values()) {
+    const v = await tx.productVariant.findUnique({ where: { productId_size: { productId: o.productId, size: o.size } } });
+    if (!v) continue;
+    const after = await tx.productVariant.update({ where: { id: v.id }, data: { stock: { increment: o.qty } } });
+    await tx.inventoryAdjustment.create({ data: { productId: o.productId, option: o.size, delta: o.qty, stockAfter: after.stock, reason, orderNumber, staffId: by.staffId ?? null, username: by.username } });
+  }
+}
 
 // ───────── Track my order ─────────
 

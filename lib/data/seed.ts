@@ -4,11 +4,11 @@ const img = (name: string) => `/images/${name}`;
 const r50 = (n: number) => Math.round(n / 50) * 50;
 
 // Attar sizes: every scent ships as 1ml / 3ml / 6ml / 12ml. `base6` is the 6ml price.
-const variantsFor = (base6: number): Variant[] => [
-  { size: "1ml", price: r50(base6 * 0.2) },
-  { size: "3ml", price: r50(base6 * 0.55) },
-  { size: "6ml", price: base6 },
-  { size: "12ml", price: r50(base6 * 1.85) },
+const variantsFor = (base6: number, stock: number): Variant[] => [
+  { size: "1ml", price: r50(base6 * 0.2), stock },
+  { size: "3ml", price: r50(base6 * 0.55), stock },
+  { size: "6ml", price: base6, stock },
+  { size: "12ml", price: r50(base6 * 1.85), stock },
 ];
 
 type Base = Omit<Product, "variants" | "price" | "maxPrice" | "active" | "section" | "sub" | "added" | "gallery" | "unit"> & { base6: number };
@@ -25,7 +25,7 @@ const base: Base[] = [
 ];
 
 export const products: Product[] = base.map(({ base6, ...p }, i) => {
-  const variants = variantsFor(base6);
+  const variants = variantsFor(base6, p.stock);
   const prices = variants.map((v) => v.price);
   return {
     ...p,

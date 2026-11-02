@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { NEXT, STATUSES, type Status } from "@/lib/order-flow";
 import { UNIT_IDS } from "@/lib/units";
 import { BLOCK_KEYS, parseBlock } from "@/lib/site-blocks";
-import { parseOrderNo } from "@/lib/server/orders";
+import { parseOrderNo, restockLines } from "@/lib/server/orders";
 import { audit, changeOwnPassword, createStaff, resetStaffPassword, revokeAllStaffSessions, staffLogin, type Result } from "@/lib/server/staff";
 import { assertStaff, Forbidden, startStaffSession, staffToken, stopStaffSession } from "@/lib/server/staff-session";
 
@@ -84,16 +84,11 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
       // Stock was taken when the order was placed; give it back when the order won't be fulfilled.
       const restock = to === "cancelled" || to === "returned";
       const wasConfirmed = order.confirmedAt !== null;
+      if (restock) await restockLines(tx, order.items, number, `Order MB-${10000 + number} ${to}`, { staffId: s.id, username: s.username });
       for (const i of order.items) {
         if (!i.productId) continue;
-        const stockDelta = restock ? i.qty : 0;
         const soldDelta = to === "confirmed" ? i.qty : restock && wasConfirmed ? -i.qty : 0;
-        if (stockDelta || soldDelta) {
-          const p = await tx.product.update({ where: { id: i.productId }, data: { ...(stockDelta ? { stock: { increment: stockDelta } } : {}), ...(soldDelta ? { soldCount: { increment: soldDelta } } : {}) } });
-          if (stockDelta) {
-            await tx.inventoryAdjustment.create({ data: { productId: i.productId, delta: stockDelta, stockAfter: p.stock, reason: `Order MB-${10000 + number} ${to}`, orderNumber: number, staffId: s.id, username: s.username } });
-          }
-        }
+        if (soldDelta) await tx.product.update({ where: { id: i.productId }, data: { soldCount: { increment: soldDelta } } });
       }
       if (to === "delivered" && order.paymentMethod === "cod") {
         await tx.payment.updateMany({ where: { orderId: order.id, method: "cod" }, data: { status: "paid" } });
@@ -113,9 +108,9 @@ export type ProductInput = {
   slug: string | null;
   unit: string;
   title: string; titleAr: string; description: string; category: string; scentFamily: string; sectionSlug: string; subsectionSlug: string;
-  stock: number | string; bestseller: boolean; active: boolean; tags: string;
+  bestseller: boolean; active: boolean; tags: string;
   lastingHours: number | string; projection: string; concentration: string; origin: string;
-  variants: { size: string; price: number | string }[];
+  variants: { size: string; price: number | string; stock: number | string }[];
   images: string[];
 };
 
@@ -129,15 +124,13 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
     if (!title) return { ok: false, error: "Enter a product name." };
     const category = text(p.category, 60);
     if (!category) return { ok: false, error: "Enter a category (for example Men's Perfume)." };
-    const stock = int(p.stock);
-    if (!Number.isInteger(stock) || stock < 0 || stock > 100000) return { ok: false, error: "Stock must be a whole number, 0 or more." };
 
     const unit = text(p.unit, 12);
     if (!UNIT_IDS.includes(unit)) return { ok: false, error: "Choose what this product is sold in (ml, grams, pieces…)." };
 
     // Options in the order the admin listed them. The label is what shoppers see ("6ml", "50g", "Pack of 10").
     const seen = new Set<string>();
-    const variants: { size: string; priceBdt: number; position: number }[] = [];
+    const variants: { size: string; priceBdt: number; stock: number; position: number }[] = [];
     const given = Array.isArray(p.variants) ? p.variants : [];
     if (given.length > MAX_OPTIONS) return { ok: false, error: `A product can have up to ${MAX_OPTIONS} options.` };
     for (const v of given) {
@@ -146,8 +139,10 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
       if (!size) return { ok: false, error: "Every option needs a name, such as 50g or Pack of 10." };
       if (seen.has(size.toLowerCase())) return { ok: false, error: `"${size}" is listed twice.` };
       if (!Number.isInteger(price) || price < 1 || price > 10_000_000) return { ok: false, error: `Enter a price above 0 for ${size}.` };
+      const stock = v?.stock === "" || v?.stock == null ? 0 : int(v.stock);
+      if (!Number.isInteger(stock) || stock < 0 || stock > 100000) return { ok: false, error: `Stock for ${size} must be a whole number, 0 or more.` };
       seen.add(size.toLowerCase());
-      variants.push({ size, priceBdt: price, position: variants.length });
+      variants.push({ size, priceBdt: price, stock, position: variants.length });
     }
     if (!variants.length) return { ok: false, error: "Add at least one option with a price." };
 
@@ -166,7 +161,7 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
     const data = {
       title, unit, titleAr: text(p.titleAr, 120) || null, description: text(p.description, 4000), category,
       scentFamily: text(p.scentFamily, 60) || null, sectionId: section?.id ?? null, subsectionId: sub?.id ?? null,
-      stock, bestseller: !!p.bestseller, active: !!p.active,
+      bestseller: !!p.bestseller, active: !!p.active,
       tags: text(p.tags, 300).split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 12),
       lastingHours: lasting, projection: text(p.projection, 60) || null, concentration: text(p.concentration, 60) || null, origin: text(p.origin, 120) || null,
     };
@@ -179,24 +174,28 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
         const row = await tx.product.findUnique({ where: { slug: existingSlug } });
         if (!row) throw new Forbidden("That product no longer exists.");
         id = row.id;
-        if (row.stock !== stock) {
-          await tx.inventoryAdjustment.create({ data: { productId: id, delta: stock - row.stock, stockAfter: stock, reason: "Edited in product form", staffId: s.id, username: s.username } });
-        }
+        // The product row is the lock orders also take, so this edit can't overwrite a stock change made by an order mid-way.
+        await tx.$queryRaw(Prisma.sql`SELECT id FROM products WHERE id = ${id}::uuid FOR UPDATE`);
         await tx.product.update({ where: { id }, data: { ...data, archivedAt: data.active ? null : (row.archivedAt ?? new Date()) } });
       } else {
         const base = slugify(title) || "product";
         target = base;
         for (let n = 2; await tx.product.findUnique({ where: { slug: target } }); n++) target = `${base}-${n}`;
         id = (await tx.product.create({ data: { ...data, slug: target } })).id;
-        if (stock) await tx.inventoryAdjustment.create({ data: { productId: id, delta: stock, stockAfter: stock, reason: "Opening stock", staffId: s.id, username: s.username } });
       }
+      const before = new Map((await tx.productVariant.findMany({ where: { productId: id } })).map((v) => [v.size, v.stock]));
       await tx.productVariant.deleteMany({ where: { productId: id, size: { notIn: variants.map((v) => v.size) } } });
       for (const v of variants) {
-        await tx.productVariant.upsert({ where: { productId_size: { productId: id, size: v.size } }, update: { priceBdt: v.priceBdt, position: v.position }, create: { productId: id, ...v } });
+        await tx.productVariant.upsert({ where: { productId_size: { productId: id, size: v.size } }, update: { priceBdt: v.priceBdt, position: v.position, stock: v.stock }, create: { productId: id, ...v } });
+        // Every stock change leaves a log line, including the opening stock of a new option.
+        const was = before.get(v.size) ?? 0;
+        if (v.stock !== was) {
+          await tx.inventoryAdjustment.create({ data: { productId: id, option: v.size, delta: v.stock - was, stockAfter: v.stock, reason: before.has(v.size) ? "Edited in product form" : "Opening stock", staffId: s.id, username: s.username } });
+        }
       }
       await tx.productImage.deleteMany({ where: { productId: id } });
       if (images.length) await tx.productImage.createMany({ data: images.map((url, position) => ({ productId: id, url, position })) });
-      await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: existingSlug ? "product.update" : "product.create", entity: "product", entityId: target, detail: { stock, active: data.active, variants } } });
+      await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: existingSlug ? "product.update" : "product.create", entity: "product", entityId: target, detail: { active: data.active, variants } } });
       return target;
     });
     updateTag("catalogue");
@@ -206,22 +205,26 @@ export async function saveProductAction(raw: unknown): Promise<Result<{ slug: st
 
 // ───────── Inventory (any staff) ─────────
 
-export async function adjustStockAction(slug: unknown, delta: unknown, reason: unknown): Promise<Result<{ stock: number }>> {
+export async function adjustStockAction(slug: unknown, size: unknown, delta: unknown, reason: unknown): Promise<Result<{ stock: number }>> {
   return guarded(undefined, async (s) => {
     const change = typeof delta === "number" && Number.isInteger(delta) ? delta : NaN;
     if (!Number.isFinite(change) || change === 0 || Math.abs(change) > 10000) return { ok: false, error: "Enter a whole number, not zero." };
     const why = text(reason, 120);
     if (!why) return { ok: false, error: "Give a reason (for example Restock or Damaged)." };
     const key = text(slug, 120);
+    const option = text(size, 40);
 
     const r = await db.$transaction(async (tx): Promise<Result<{ stock: number }>> => {
-      const locked = await tx.$queryRaw<{ id: string; stock: number }[]>(Prisma.sql`SELECT id, stock FROM products WHERE slug = ${key} FOR UPDATE`);
+      // Same lock orders take, so a change here and a sale of the same option can't cross.
+      const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM products WHERE slug = ${key} FOR UPDATE`);
       if (!locked[0]) return { ok: false, error: "Product not found." };
-      const next = locked[0].stock + change;
-      if (next < 0) return { ok: false, error: `Only ${locked[0].stock} in stock, so that would go below zero.` };
-      await tx.product.update({ where: { id: locked[0].id }, data: { stock: next } });
-      await tx.inventoryAdjustment.create({ data: { productId: locked[0].id, delta: change, stockAfter: next, reason: why, staffId: s.id, username: s.username } });
-      await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: "stock.adjust", entity: "product", entityId: key, detail: { change, reason: why } } });
+      const v = await tx.productVariant.findUnique({ where: { productId_size: { productId: locked[0].id, size: option } } });
+      if (!v) return { ok: false, error: "That option no longer exists." };
+      const next = v.stock + change;
+      if (next < 0) return { ok: false, error: `Only ${v.stock} of ${option} in stock, so that would go below zero.` };
+      await tx.productVariant.update({ where: { id: v.id }, data: { stock: next } });
+      await tx.inventoryAdjustment.create({ data: { productId: locked[0].id, option, delta: change, stockAfter: next, reason: why, staffId: s.id, username: s.username } });
+      await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: "stock.adjust", entity: "product", entityId: key, detail: { option, change, reason: why } } });
       return { ok: true, stock: next };
     });
     if (r.ok) updateTag("catalogue");

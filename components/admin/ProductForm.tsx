@@ -12,7 +12,7 @@ import { UNITS, unitOf } from "@/lib/units";
 
 const MAX_OPTIONS = 8;
 
-export type ProductFormData = Omit<ProductInput, "variants"> & { variants: { size: string; price: string }[] };
+export type ProductFormData = Omit<ProductInput, "variants"> & { variants: { size: string; price: string; stock: string }[] };
 
 /** Create or edit a product. The server validates everything again; these checks just save a round trip. */
 export function ProductForm({ initial, sections }: { initial: ProductFormData; sections: { slug: string; name: string; children: { slug: string; name: string }[] }[] }) {
@@ -28,9 +28,9 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
   const [amount, setAmount] = useState("");
   const has = (label: string) => f.variants.some((v) => v.size.toLowerCase() === label.toLowerCase());
   const full = f.variants.length >= MAX_OPTIONS;
-  const addOption = (label: string) => { if (label && !has(label) && !full) set("variants", [...f.variants, { size: label, price: "" }]); };
+  const addOption = (label: string) => { if (label && !has(label) && !full) set("variants", [...f.variants, { size: label, price: "", stock: "0" }]); };
   const addAmount = () => { const n = Number(amount); if (Number.isFinite(n) && n > 0) { addOption(unit.label(n)); setAmount(""); } };
-  const edit = (i: number, patch: Partial<{ size: string; price: string }>) => set("variants", f.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+  const edit = (i: number, patch: Partial<{ size: string; price: string; stock: string }>) => set("variants", f.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)));
   const move = (i: number, d: -1 | 1) => { const to = i + d; if (to < 0 || to >= f.variants.length) return; const next = [...f.variants]; [next[i], next[to]] = [next[to], next[i]]; set("variants", next); };
 
   const submit = async (e: React.FormEvent) => {
@@ -80,7 +80,7 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
       </section>
 
       <section className="lux-surface" style={section}>
-        <h2 style={h}>Sold in, options and prices (৳)</h2>
+        <h2 style={h}>Sold in, options, prices (৳) and stock</h2>
         <div className="grid gap-3.5 sm:grid-cols-[1fr_1fr]">
           <Field id="pf-unit" label="Sold in *">
             <select id="pf-unit" className="lux-input" value={f.unit} onChange={(e) => set("unit", e.target.value)}>
@@ -105,9 +105,10 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
         ) : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             {f.variants.map((v, i) => (
-              <li key={i} className="grid items-center gap-2.5" style={{ gridTemplateColumns: "1fr 150px auto" }}>
+              <li key={i} className="grid items-center gap-2.5" style={{ gridTemplateColumns: "minmax(0,1fr) 120px 100px auto" }}>
                 <input aria-label={`Option ${i + 1} name`} className="lux-input" maxLength={40} placeholder="e.g. 50g or Pack of 10" value={v.size} onChange={(e) => edit(i, { size: e.target.value })} />
                 <input aria-label={`Price of ${v.size || `option ${i + 1}`}`} inputMode="numeric" className="lux-input" placeholder="Price ৳" value={v.price} onChange={(e) => edit(i, { price: e.target.value.replace(/\D/g, "") })} />
+                <input aria-label={`Stock of ${v.size || `option ${i + 1}`}`} inputMode="numeric" className="lux-input" placeholder="In stock" value={v.stock} onChange={(e) => edit(i, { stock: e.target.value.replace(/\D/g, "") })} />
                 <span className="flex gap-1">
                   <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="lux-focus" style={iconBtn}><ArrowUp size={14} /></button>
                   <button type="button" aria-label="Move down" disabled={i === f.variants.length - 1} onClick={() => move(i, 1)} className="lux-focus" style={iconBtn}><ArrowDown size={14} /></button>
@@ -117,13 +118,12 @@ export function ProductForm({ initial, sections }: { initial: ProductFormData; s
             ))}
           </ul>
         )}
-        <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Up to {MAX_OPTIONS} options. The first one is what the quick &ldquo;Add to Cart&rdquo; button on a shop card adds, so put the smallest first. Discounts are set on the Discounts page.</p>
+        <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>Each option has its own stock. Up to {MAX_OPTIONS} options. The first one is what the quick &ldquo;Add to Cart&rdquo; button on a shop card adds, so put the smallest first. Discounts are set on the Discounts page.</p>
       </section>
 
       <section className="lux-surface" style={section}>
-        <h2 style={h}>Stock and visibility</h2>
-        <div className="grid items-end gap-3.5 sm:grid-cols-3">
-          <Field id="pf-stock" label="Items in stock *"><input id="pf-stock" inputMode="numeric" className="lux-input" value={String(f.stock)} onChange={(e) => set("stock", e.target.value.replace(/\D/g, ""))} /></Field>
+        <h2 style={h}>Visibility</h2>
+        <div className="grid items-end gap-3.5 sm:grid-cols-2">
           <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14, paddingBottom: 12 }}><input type="checkbox" checked={f.active} onChange={(e) => set("active", e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> Visible in the shop</label>
           <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14, paddingBottom: 12 }}><input type="checkbox" checked={f.bestseller} onChange={(e) => set("bestseller", e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> Best seller</label>
         </div>

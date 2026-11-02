@@ -7,8 +7,8 @@ import { adjustStockAction, deleteProductAction, setProductActiveAction } from "
 
 const iconBtn = { width: 30, height: 30, borderRadius: 8, border: "1px solid var(--lux-line)", background: "transparent", color: "var(--lux-ink)", cursor: "pointer", fontSize: 16 } as const;
 
-/** The prototype's stock stepper. Each click is a logged adjustment. */
-export function StockStepper({ slug, stock }: { slug: string; stock: number }) {
+/** The prototype's stock stepper, one per option. Each click is a logged adjustment. */
+export function StockStepper({ slug, size, stock }: { slug: string; size: string; stock: number }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -17,7 +17,7 @@ export function StockStepper({ slug, stock }: { slug: string; stock: number }) {
     setBusy(true);
     setError("");
     try {
-      const r = await adjustStockAction(slug, d, "Manual adjustment");
+      const r = await adjustStockAction(slug, size, d, "Manual adjustment");
       if (r.ok) router.refresh(); else setError(r.error);
     } catch {
       setError("Couldn't reach the server.");
@@ -27,9 +27,9 @@ export function StockStepper({ slug, stock }: { slug: string; stock: number }) {
   return (
     <div>
       <div className="flex items-center gap-2">
-        <button type="button" style={iconBtn} disabled={busy || stock === 0} onClick={() => step(-1)} aria-label="Decrease stock">−</button>
+        <button type="button" style={iconBtn} disabled={busy || stock === 0} onClick={() => step(-1)} aria-label={`Decrease stock of ${size}`}>−</button>
         <span style={{ minWidth: 26, textAlign: "center" }}>{stock}</span>
-        <button type="button" style={iconBtn} disabled={busy} onClick={() => step(1)} aria-label="Increase stock">+</button>
+        <button type="button" style={iconBtn} disabled={busy} onClick={() => step(1)} aria-label={`Increase stock of ${size}`}>+</button>
       </div>
       {error && <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--lux-warning)" }}>{error}</p>}
     </div>
