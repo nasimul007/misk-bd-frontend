@@ -22,6 +22,13 @@ export type Order = {
   country: string;
   division: string; // Bangladesh division, or the country for international orders
   address: string;
+  note: string; // delivery instructions the customer gave
+  contactless: boolean;
+  // What this order allows the customer to do right now (decided on the server from the order and the owner's policy).
+  canCancel: boolean;
+  canReturn: boolean;
+  returnRequested: boolean;
+  canPayOnline: boolean; // a Cash on Delivery order that can still be paid by card or mobile banking
 };
 
 /** Current server-side price and stock for a bag line, returned when the bag is out of date. */

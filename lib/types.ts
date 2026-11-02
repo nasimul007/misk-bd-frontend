@@ -60,7 +60,13 @@ export type Category = { name: string; image: string };
 export type Testimonial = { quote: string; name: string; location: string; rating: number };
 export type TrustItem = { icon: string; title: string; sub: string };
 
+export type OrderPolicy = {
+  customerCancel: "pending" | "confirmed" | "off"; // customers may cancel: until the shop confirms | until it is packed | never
+  returnDays: number; // how long after delivery a customer can ask to return an order
+};
+
 export type SiteContent = {
+  policy: OrderPolicy;
   hero: { eyebrow: string; titleLine1: string; titleLine2: string; subtitle: string; image: string };
   trust: TrustItem[];
   manifesto: { eyebrow: string; title: string; body: string; image: string; quote: string };

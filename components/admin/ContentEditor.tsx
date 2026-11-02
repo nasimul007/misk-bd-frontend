@@ -142,6 +142,23 @@ export function ContentEditor({ content, customised }: { content: SiteContent; c
         )}
       </Block>
 
+      <Block id="policy" title="Cancellations and returns" hint="What customers can do themselves from their order page. Staff can always cancel or return an order from the admin." initial={content.policy} customised={c("policy")}>
+        {(v, set) => (
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field id="po-cancel" label="Customers may cancel an order">
+              <select id="po-cancel" className="lux-input" value={v.customerCancel} onChange={(e) => set({ ...v, customerCancel: e.target.value as typeof v.customerCancel })}>
+                <option value="pending">Until the shop confirms it (usual)</option>
+                <option value="confirmed">Until it is packed</option>
+                <option value="off">Never (they must contact the shop)</option>
+              </select>
+            </Field>
+            <Field id="po-days" label="Return window after delivery (days)">
+              <input id="po-days" inputMode="numeric" className="lux-input" value={String(v.returnDays)} onChange={(e) => set({ ...v, returnDays: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
+            </Field>
+          </div>
+        )}
+      </Block>
+
       <Block id="footer" title="Footer & contact" initial={content.footer} customised={c("footer")}>
         {(v, set) => (
           <div className="grid gap-3.5 sm:grid-cols-2">

@@ -38,10 +38,12 @@ export type CheckoutForm = {
   city: string;
   postal: string;
   street: string;
+  note: string; // optional instructions for the rider, up to 300 characters
+  contactless: boolean; // leave at the door
   pay: PaymentId | "";
 };
 
-export const emptyForm: CheckoutForm = { intl: false, name: "", phone: "", dial: "", email: "", division: "", district: "", thana: "", country: "", region: "", city: "", postal: "", street: "", pay: "bkash" };
+export const emptyForm: CheckoutForm = { intl: false, name: "", phone: "", dial: "", email: "", division: "", district: "", thana: "", country: "", region: "", city: "", postal: "", street: "", note: "", contactless: false, pay: "bkash" };
 
 /** Bangladeshi mobile in national form: strips symbols and a leading 880/00880, ensures one leading 0. */
 export const bdLocal = (phone: string) => phone.replace(/\D/g, "").replace(/^(00)?880/, "").replace(/^0*/, "0");
@@ -55,7 +57,7 @@ export function validate(f: CheckoutForm): FormErrors {
 
   if (!name) e.name = "Please enter your full name.";
   else if (/\d/.test(name)) e.name = "Name cannot contain numbers.";
-  else if (!/^[\p{L}][\p{L}\p{M}\s.'’-]*$/u.test(name) || name.replace(/[^\p{L}]/gu, "").length < 2) e.name = "Enter a valid name using letters only.";
+  else if (!/^[\p{L}][\p{L}\p{M}\s.'’(),"/-]*$/u.test(name) || name.replace(/[^\p{L}]/gu, "").length < 2) e.name = "Enter a valid name. Letters, spaces and . ' - ( ) , are fine.";
 
   if (!digits) e.phone = "Please enter your phone number.";
   else if (!f.intl && !/^01[3-9]\d{8}$/.test(bdLocal(f.phone))) e.phone = "Enter a valid 11-digit Bangladeshi number, e.g. 01712 345678.";

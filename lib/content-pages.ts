@@ -1,5 +1,6 @@
 import { shipping } from "@/lib/config";
 import { money } from "@/lib/format";
+import type { OrderPolicy } from "@/lib/types";
 
 export type ContentTopic = "authenticity" | "about" | "shipping" | "returns" | "warranty" | "terms" | "privacy";
 export type ContentPageData = { eyebrow: string; title: string; description: string; body: string[]; points: string[] };
@@ -86,3 +87,41 @@ export const contentPages: Record<ContentTopic, ContentPageData> = {
     points: [],
   },
 };
+
+/**
+ * The Returns & Refunds page. It follows the owner's cancel and return settings, so what it promises is
+ * always what the order page actually offers.
+ */
+export function returnsPage(policy: OrderPolicy): ContentPageData {
+  const days = policy.returnDays;
+  const cancel =
+    policy.customerCancel === "pending"
+      ? "Changed your mind before we confirm your order? Open it from Track My Order and press “Cancel order”. Once we have confirmed it, please contact us and we will do our best to stop it."
+      : policy.customerCancel === "confirmed"
+        ? "Changed your mind before your order is packed? Open it from Track My Order and press “Cancel order”. Once it is packed, please contact us and we will do our best to stop it."
+        : "To cancel an order, please contact us with your order number and we will do our best to stop it before it ships.";
+  return {
+    eyebrow: "Peace of Mind",
+    title: "Returns & Refunds",
+    description: `Unopened items can be returned within ${days} days of delivery for a full refund.`,
+    points: [`${days}-day return window`, "Refund to original method", "COD refunds supported", "5-day processing"],
+    body: [
+      days > 0
+        ? `Unopened items in their original packaging can be returned within ${days} days of delivery for a full refund to your original payment method, including Cash on Delivery orders. If something arrives damaged or faulty, tell us within 48 hours and we will replace it at no cost (see our Warranty Policy).`
+        : "We do not accept returns of opened or used items. If something arrives damaged or faulty, tell us within 48 hours and we will replace it at no cost (see our Warranty Policy).",
+      ...(days > 0
+        ? [
+            "## How to return an order",
+            "1. Open your order. Go to Track My Order, enter your order number and the phone number you ordered with (or sign in), and press “Request a return” once the order shows Delivered.",
+            `2. Tell us why. Add a short reason, for example “the bottle arrived damaged”. You can ask for a return up to ${days} days after delivery.`,
+            "3. We contact you. Our team will call you or message you on WhatsApp to arrange the pick-up from your address, or another way to send it back to us.",
+            "4. We check the item. When it reaches us we check that it is unopened and undamaged.",
+            "5. You are refunded. Refunds are processed within 5 business days of the item reaching us. Online payments go back to the card or mobile account you paid with. For Cash on Delivery orders we refund by bKash or bank transfer to the number you give us.",
+          ]
+        : []),
+      "## Cancelling an order",
+      cancel,
+      "Need help? Message or call us on the contact details at the bottom of this page, and quote your order number.",
+    ],
+  };
+}

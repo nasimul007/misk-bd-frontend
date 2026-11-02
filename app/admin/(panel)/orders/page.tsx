@@ -14,17 +14,19 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const status = STATUSES.find((s) => s === one(sp.status));
   const q = one(sp.q).trim().slice(0, 40);
+  const returns = one(sp.returns) === "1"; // only orders with an open return request
 
   const number = parseOrderNo(q.toUpperCase());
   const digits = q.replace(/\D/g, "");
   const orders = await db.order.findMany({
     where: {
       ...(status ? { status } : {}),
+      ...(returns ? { returnRequests: { some: { status: "open" } } } : {}),
       ...(q
         ? { OR: [...(number ? [{ number }] : []), ...(digits.length >= 4 ? [{ contactPhone: { contains: digits } }] : []), { contactName: { contains: q, mode: "insensitive" as const } }] }
         : {}),
     },
-    include: { items: { select: { qty: true } } },
+    include: { items: { select: { qty: true } }, returnRequests: { where: { status: "open" }, select: { id: true } } },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -36,8 +38,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     <>
       <PageHead title="Orders" />
       <div className="flex flex-wrap items-center gap-2" style={{ marginBottom: 16 }}>
-        {chip("All", "/admin/orders", !status)}
-        {STATUSES.map((s) => chip(s, `/admin/orders?status=${s}`, s === status))}
+        {chip("All", "/admin/orders", !status && !returns)}
+        {STATUSES.map((s) => chip(s, `/admin/orders?status=${s}`, s === status && !returns))}
+        {chip("return requests", "/admin/orders?returns=1", returns)}
         <form action="/admin/orders" className="flex gap-2" style={{ marginLeft: "auto" }}>
           {status && <input type="hidden" name="status" value={status} />}
           <input name="q" defaultValue={q} placeholder="Order no., phone or name" aria-label="Search orders" className="lux-input" style={{ width: 220 }} />
@@ -61,7 +64,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   <td style={{ ...td, color: "var(--lux-ink-muted)" }}>{o.shipDivision ?? o.shipCountry ?? "—"}</td>
                   <td style={td}><Badge tone={o.paymentMethod === "cod" ? "warning" : "glass"}>{o.paymentMethod}</Badge><div style={{ fontSize: 12, color: "var(--lux-ink-muted)", marginTop: 2 }}>{o.paymentStatus.replace("_", " ")}</div></td>
                   <td style={td}>{money(o.total)}</td>
-                  <td style={td}><OrderStatusSelect orderNo={orderNo(o.number)} status={o.status} next={nextStatuses(o.status)} /></td>
+                  <td style={td}><OrderStatusSelect orderNo={orderNo(o.number)} status={o.status} next={nextStatuses(o.status)} />{o.returnRequests.length > 0 && <div style={{ marginTop: 6 }}><Badge tone="warning">Return requested</Badge></div>}</td>
                 </tr>
                 );
               })}

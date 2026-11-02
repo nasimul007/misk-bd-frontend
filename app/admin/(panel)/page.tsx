@@ -19,7 +19,7 @@ export default async function Dashboard() {
   const weekAgo = new Date(startOfDay);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
-  const [byStatus, today, week, cod, top, low, recent, lowCount] = await Promise.all([
+  const [byStatus, today, week, cod, top, low, recent, lowCount, returnCount] = await Promise.all([
     db.order.groupBy({ by: ["status"], _count: true }),
     db.order.aggregate({ where: { createdAt: { gte: startOfDay }, status: { not: "cancelled" } }, _count: true, _sum: { total: true } }),
     db.order.aggregate({ where: { createdAt: { gte: weekAgo }, status: { notIn: ["cancelled", "returned"] } }, _count: true, _sum: { total: true } }),
@@ -28,6 +28,7 @@ export default async function Dashboard() {
     db.productVariant.findMany({ where: { stock: { lte: LOW_STOCK }, product: { active: true } }, orderBy: [{ stock: "asc" }, { product: { title: "asc" } }], select: { size: true, stock: true, product: { select: { slug: true, title: true, _count: { select: { variants: true } } } } }, take: 10 }),
     db.order.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     db.productVariant.count({ where: { stock: { lte: LOW_STOCK }, product: { active: true } } }),
+    db.returnRequest.count({ where: { status: "open" } }),
   ]);
   const count = (s: string) => byStatus.find((b) => b.status === s)?._count ?? 0;
   const stats: [string, string, string][] = [
@@ -35,6 +36,7 @@ export default async function Dashboard() {
     ["To pack and ship", String(count("confirmed") + count("packed")), "/admin/orders?status=confirmed"],
     ["Out for delivery", String(count("shipped")), "/admin/orders?status=shipped"],
     ["Today's orders", owner ? `${today._count} · ${money(today._sum.total ?? 0)}` : String(today._count), "/admin/orders"],
+    ["Return requests", String(returnCount), "/admin/orders?returns=1"],
   ];
   const codCount = cod.find((c) => c.paymentMethod === "cod")?._count ?? 0;
   const prepaid = cod.filter((c) => c.paymentMethod !== "cod").reduce((n, c) => n + c._count, 0);
@@ -85,7 +87,7 @@ export default async function Dashboard() {
           )}
         </section>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" style={{ marginBottom: 28 }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginBottom: 28 }}>
         {stats.map(([label, value, href]) => (
           <Link key={label} href={href} className="lux-surface lux-focus" style={{ borderRadius: 16, padding: 20, display: "block" }}>
             <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--lux-ink-muted)" }}>{label}</div>

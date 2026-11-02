@@ -7,15 +7,17 @@ import { lookupOrdersAction, trackOrderAction } from "@/app/actions/orders";
 import { myOrdersAction } from "@/app/actions/auth";
 import { Field } from "@/components/checkout/Field";
 import { StatusBadge } from "@/components/admin/ui";
+import { OrderActions } from "@/components/track/OrderActions";
 import { OrderProgress } from "@/components/track/OrderProgress";
 import { payments } from "@/lib/config";
 import { useSession } from "@/lib/auth";
 import { useMoney } from "@/lib/currency";
 import { orderTokens, type Order } from "@/lib/orders";
+import type { Proof } from "@/lib/server/orders";
 
 const PAY: Record<string, string> = { paid: "Paid", pending: "Payment pending", failed: "Payment failed", unpaid: "Unpaid", cod_pending: "Pay on delivery", cod_collected: "Paid (cash on delivery)", refunded: "Refunded" };
 
-function Result({ order }: { order: Order }) {
+function Result({ order, proof, onUpdate }: { order: Order; proof: () => Proof; onUpdate: (o: Order) => void }) {
   const money = useMoney();
   const t = order.totals;
   const payLabel = payments.find((p) => p.id === order.pay)?.label ?? order.pay;
@@ -41,12 +43,13 @@ function Result({ order }: { order: Order }) {
       </ul>
       <div className="grid gap-x-8 gap-y-3 sm:grid-cols-3" style={{ borderTop: "1px solid var(--lux-line)", marginTop: 18, paddingTop: 18, fontSize: 14 }}>
         <div><div className="lux-eyebrow">Payment</div><div style={{ marginTop: 4 }}>{payLabel}</div><div style={{ color: "var(--lux-ink-muted)", fontSize: 13 }}>{PAY[order.payStatus] ?? order.payStatus}</div></div>
-        <div><div className="lux-eyebrow">Delivering to</div><div style={{ marginTop: 4 }}>{order.division}</div></div>
+        <div><div className="lux-eyebrow">Delivering to</div><div style={{ marginTop: 4 }}>{order.division}</div>{order.contactless && <div style={{ color: "var(--lux-ink-muted)", fontSize: 13 }}>Contactless</div>}{order.note && <div style={{ color: "var(--lux-ink-muted)", fontSize: 13, marginTop: 2 }}>&ldquo;{order.note}&rdquo;</div>}</div>
         <div><div className="lux-eyebrow">Total</div><div className="font-display" style={{ marginTop: 4, fontSize: 22, color: "var(--lux-gold)" }}>{money(t.total)}</div></div>
       </div>
       {order.pay === "sslcommerz" && order.status === "pending" && order.payStatus !== "paid" && (
         <p style={{ margin: "16px 0 0", fontSize: 13.5 }}>Your payment isn&apos;t complete. <Link href={`/order/${order.id}`} className="lux-link">Finish paying</Link> (on the device you ordered from).</p>
       )}
+      <OrderActions order={order} proof={proof} onUpdate={onUpdate} />
     </section>
   );
 }
@@ -111,7 +114,14 @@ export function TrackOrder() {
         </section>
       )}
 
-      {shown && <Result order={shown} />}
+      {shown && (
+        <Result
+          order={shown}
+          // The guest token if this device has one, otherwise the phone number just typed (or the signed-in account).
+          proof={() => ({ token: orderTokens.refs().find((r) => r.no === shown.id)?.token, phone })}
+          onUpdate={(o) => { setShown(o); setMine((m) => m.map((x) => (x.id === o.id ? o : x))); }}
+        />
+      )}
     </div>
   );
 }

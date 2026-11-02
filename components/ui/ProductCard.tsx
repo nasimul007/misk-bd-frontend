@@ -19,7 +19,7 @@ export function ProductCard({ product }: { product: PricedProduct }) {
           <div style={{ position: "absolute", left: 10, top: 10, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
             {discountLabel && <Badge tone="danger" style={{ background: "var(--lux-danger)", color: "#fff", border: "none" }}>{discountLabel}</Badge>}
             {bestseller && <Badge tone="gold">Bestseller</Badge>}
-            {stock <= 5 && <Badge tone="glass">Few left</Badge>}
+            {stock > 0 && stock <= 5 && <Badge tone="glass">Few left</Badge>}
           </div>
           <Image src={image} alt={title} fill sizes="(max-width: 640px) 100vw, 25vw" style={{ objectFit: "cover", transition: "transform var(--dur-mid) var(--ease-lux)" }} className="group-hover:scale-105" />
         </div>

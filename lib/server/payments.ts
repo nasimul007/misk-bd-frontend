@@ -12,20 +12,26 @@ export const sslEnabled = () => sslConfig() !== null;
 
 type Start = { ok: true; url: string } | { ok: false; reason: string };
 
-/** Opens a fresh SSLCommerz payment attempt for an order that is still waiting for money. */
+/**
+ * Opens a fresh SSLCommerz payment attempt for an order that is still waiting for money. An online order is
+ * held for a short while. A Cash on Delivery order can also be paid this way before it arrives: it stays
+ * Cash on Delivery, with no hold and no expiry, until a payment is actually confirmed.
+ */
 export async function startSslcommerz(orderNumber: number): Promise<Start> {
   const cfg = sslConfig();
   if (!cfg) return { ok: false, reason: "Online payment isn't available right now." };
 
   const order = await db.order.findUnique({ where: { number: orderNumber }, include: { items: true, payments: true } });
-  if (!order || order.paymentMethod !== "sslcommerz") return { ok: false, reason: "That order can't be paid online." };
-  if (order.status !== "pending" || order.paymentStatus === "paid") return { ok: false, reason: "This order doesn't need a payment." };
+  if (!order || (order.paymentMethod !== "sslcommerz" && order.paymentMethod !== "cod")) return { ok: false, reason: "That order can't be paid online." };
+  const fromCod = order.paymentMethod === "cod";
+  if (fromCod ? !["pending", "confirmed", "packed", "shipped"].includes(order.status) || order.paymentStatus !== "cod_pending"
+              : order.status !== "pending" || order.paymentStatus === "paid") return { ok: false, reason: "This order doesn't need a payment." };
 
   // Every attempt gets its own transaction id, so a retry never collides with an earlier try.
   const tranId = `${orderNo(order.number)}-${order.payments.filter((p) => p.providerRef).length + 1}`;
-  const open = order.payments.find((p) => !p.providerRef && p.status === "pending");
+  const open = fromCod ? undefined : order.payments.find((p) => !p.providerRef && p.status === "pending");
   const payment = await db.$transaction(async (tx) => {
-    await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "pending", paymentDueAt: holdUntil() } });
+    if (!fromCod) await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "pending", paymentDueAt: holdUntil() } });
     return open
       ? tx.payment.update({ where: { id: open.id }, data: { providerRef: tranId } })
       : tx.payment.create({ data: { orderId: order.id, method: "sslcommerz", status: "pending", amount: order.total, providerRef: tranId } });
@@ -49,7 +55,7 @@ export async function startSslcommerz(orderNumber: number): Promise<Start> {
   });
   if (!r.ok) {
     await db.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { reason: r.reason } } });
-    await db.order.update({ where: { id: order.id }, data: { paymentStatus: "failed" } });
+    if (!fromCod) await db.order.update({ where: { id: order.id }, data: { paymentStatus: "failed" } });
   }
   return r;
 }
@@ -89,8 +95,13 @@ export async function settleSslcommerz(valId: string, tranIdHint: string): Promi
     const notes = [`Paid online (SSLCommerz${v.cardType ? `, ${v.cardType}` : ""}${v.bankTranId ? `, ref ${v.bankTranId}` : ""})`];
     if (v.riskLevel === "1") notes.push("The gateway flagged this payment as risky. Check it in the SSLCommerz panel before shipping.");
     if (order.status === "cancelled") notes.push("This order was already cancelled, so its stock was released. Reinstate it or refund the customer.");
+    const wasCod = order.paymentMethod === "cod";
+    if (wasCod) {
+      notes[0] = notes[0].replace("Paid online", "Paid online before delivery (was Cash on Delivery)");
+      await tx.payment.updateMany({ where: { orderId: order.id, method: "cod", status: "pending" }, data: { status: "failed", raw: { superseded: "paid online" } } });
+    }
     await tx.payment.update({ where: { id: payment.id }, data: { status: "paid", raw: v.raw } });
-    await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "paid", paymentDueAt: null } });
+    await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "paid", paymentDueAt: null, ...(wasCod ? { paymentMethod: "sslcommerz" as const } : {}) } });
     await tx.orderStatusHistory.create({ data: { orderId: order.id, status: order.status, note: notes.join(". ") } });
     return { orderNo: no, paid: true };
   });
@@ -101,10 +112,9 @@ export async function failSslcommerz(tranId: string, kind: "failed" | "cancelled
   const payment = await db.payment.findUnique({ where: { method_providerRef: { method: "sslcommerz", providerRef: tranId } }, include: { order: true } });
   if (!payment) return null;
   if (payment.status === "pending" && payment.order.paymentStatus !== "paid") {
-    await db.$transaction([
-      db.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { reason: kind } } }),
-      db.order.update({ where: { id: payment.orderId }, data: { paymentStatus: "failed" } }),
-    ]);
+    await db.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { reason: kind } } });
+    // A Cash on Delivery order whose online attempt failed is still a perfectly good COD order.
+    if (payment.order.paymentMethod !== "cod") await db.order.update({ where: { id: payment.orderId }, data: { paymentStatus: "failed" } });
   }
   return orderNo(payment.order.number);
 }

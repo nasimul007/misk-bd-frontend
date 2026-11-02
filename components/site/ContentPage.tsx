@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { contentPages, type ContentTopic } from "@/lib/content-pages";
+import { contentPages, type ContentPageData, type ContentTopic } from "@/lib/content-pages";
 
-export function ContentPage({ topic }: { topic: ContentTopic }) {
-  const c = contentPages[topic];
+export function ContentPage({ topic, data }: { topic: ContentTopic; data?: ContentPageData }) {
+  const c = data ?? contentPages[topic];
   return (
     <div className="alignment" style={{ padding: "16px 24px 72px", color: "var(--lux-ink)", maxWidth: 820 }}>
       <nav aria-label="Breadcrumb" className="flex items-center gap-2" style={{ padding: "12px 0", fontSize: 14, color: "var(--lux-ink-muted)" }}>
@@ -25,7 +25,9 @@ export function ContentPage({ topic }: { topic: ContentTopic }) {
           ))}
         </ul>
       )}
-      {c.body.map((para, i) => (
+      {c.body.map((para, i) => para.startsWith("## ") ? (
+        <h2 key={i} className="font-display" style={{ color: "var(--lux-ink)", fontSize: 22, fontWeight: 500, margin: "34px 0 14px" }}>{para.slice(3)}</h2>
+      ) : (
         <p key={i} style={{ color: "var(--lux-ink-muted)", lineHeight: 1.8, fontSize: 16, marginBottom: 18 }}>{para}</p>
       ))}
       <div style={{ marginTop: 28 }}><Button variant="outline" href="/shop">Explore the Collection</Button></div>

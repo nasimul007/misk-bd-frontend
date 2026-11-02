@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { ContentPage } from "@/components/site/ContentPage";
-import { contentPages } from "@/lib/content-pages";
+import { returnsPage } from "@/lib/content-pages";
+import { getSiteContent } from "@/lib/data";
 
-const page = contentPages.returns;
+export async function generateMetadata(): Promise<Metadata> {
+  const page = returnsPage((await getSiteContent()).policy);
+  return { title: `${page.title} — MISK BD`, description: page.description };
+}
 
-export const metadata: Metadata = { title: `${page.title} — MISK BD`, description: page.description };
-
-export default function Page() {
-  return <ContentPage topic="returns" />;
+export default async function Page() {
+  return <ContentPage topic="returns" data={returnsPage((await getSiteContent()).policy)} />;
 }

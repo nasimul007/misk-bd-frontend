@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { UnpaidOrders } from "@/components/checkout/UnpaidOrders";
 import { useMoney } from "@/lib/currency";
 
 /** The list of cart items with quantity steppers. Shared by the drawer and the /cart page. */
@@ -18,6 +19,7 @@ export function CartLines({ onNavigate }: { onNavigate?: () => void }) {
       <div style={{ textAlign: "center", marginTop: 40 }}>
         <p style={{ color: "var(--lux-ink-muted)" }}>Your cart is empty.</p>
         <Link href="/shop" onClick={onNavigate} className="lux-link" style={{ fontSize: 14 }}>Browse the collection</Link>
+        <UnpaidOrders />
       </div>
     );
   }

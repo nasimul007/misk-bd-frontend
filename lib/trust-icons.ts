@@ -16,4 +16,4 @@ export const TRUST_ICONS: Record<string, LucideIcon> = {
   phone: Phone,
   award: Award,
 };
-export const TRUST_ICON_NAMES = Object.keys(TRUST_ICONS);
+export { TRUST_ICON_NAMES } from "@/lib/trust-icon-names";

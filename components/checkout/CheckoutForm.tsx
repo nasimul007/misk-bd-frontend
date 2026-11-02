@@ -14,6 +14,7 @@ import { money as bdt } from "@/lib/format";
 import { placeOrderAction } from "@/app/actions/orders";
 import { orderTokens } from "@/lib/orders";
 import { Field, ariaFor } from "./Field";
+import { UnpaidOrders } from "./UnpaidOrders";
 
 const card = { borderRadius: 18, padding: 24 } as const;
 const h = { fontSize: 18, fontWeight: 500, margin: "0 0 18px" } as const;
@@ -41,7 +42,7 @@ export function CheckoutForm() {
   const districts = f.division ? Object.keys(geo[f.division] ?? {}) : [];
   const thanas = f.division && f.district ? (geo[f.division]?.[f.district] ?? []) : [];
 
-  const toggleIntl = (intl: boolean) => setF({ ...emptyForm, name: f.name, email: f.email, street: f.street, intl, pay: intl ? "stripe" : "bkash" });
+  const toggleIntl = (intl: boolean) => setF({ ...emptyForm, name: f.name, email: f.email, street: f.street, note: f.note, contactless: f.contactless, intl, pay: intl ? "stripe" : "bkash" });
   const pickCountry = (country: string) => setF((p) => ({ ...p, country, dial: dialFor(country) }));
 
   const place = async (e: React.FormEvent) => {
@@ -79,6 +80,7 @@ export function CheckoutForm() {
       <div style={{ padding: "60px 0", textAlign: "center" }}>
         <p className="font-display" style={{ fontSize: 24 }}>Your bag is empty</p>
         <div className="flex justify-center" style={{ marginTop: 20 }}><Link href="/shop" className="lux-btn lux-focus">Browse the collection</Link></div>
+        <UnpaidOrders />
       </div>
     );
   }
@@ -164,6 +166,17 @@ export function CheckoutForm() {
               </Field>
             </div>
           )}
+          <div className="flex flex-col gap-3" style={{ marginTop: 14 }}>
+            <Field id="ck-note" label="Notes for delivery (optional)">
+              <textarea id="ck-note" rows={3} maxLength={300} className="lux-input" placeholder="e.g. building, landmark, call before arriving" value={f.note} onChange={(e) => set("note", e.target.value)} />
+            </Field>
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 14 }}>
+                <input type="checkbox" checked={f.contactless} onChange={(e) => set("contactless", e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> Contactless delivery (leave at the door)
+              </label>
+              <span style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{f.note.length}/300</span>
+            </div>
+          </div>
           {(f.division || (f.intl && f.country)) && (
             <p className="flex items-center gap-2" style={{ margin: "14px 0 0", fontSize: 13, color: "var(--lux-ink-muted)" }}>
               <Truck size={14} /> Estimated delivery: {estimateFor(f.intl, f.division)} &middot; {t.shipping === 0 ? "Free shipping" : `Shipping ${money(t.shipping)}`}

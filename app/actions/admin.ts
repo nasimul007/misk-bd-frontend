@@ -95,9 +95,23 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
       }
       await tx.order.update({ where: { id: order.id }, data });
       await tx.orderStatusHistory.create({ data: { orderId: order.id, status: to, note: text(note, 300) || null, actorId: s.id } });
+      // Marking an order returned settles any open return request on it.
+      if (to === "returned") await tx.returnRequest.updateMany({ where: { orderId: order.id, status: "open" }, data: { status: "closed", closedAt: now } });
       await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: "order.status", entity: "order", entityId: String(number), detail: { from: order.status, to } } });
       return { ok: true };
     });
+  });
+}
+
+/** Dismiss a customer's return request without returning the order (for example, it is outside the policy). */
+export async function closeReturnRequestAction(orderNumber: unknown): Promise<Result> {
+  return guarded(undefined, async (s) => {
+    const number = typeof orderNumber === "string" ? parseOrderNo(orderNumber) : null;
+    if (number === null) return { ok: false, error: "That change isn't valid." };
+    const r = await db.returnRequest.updateMany({ where: { order: { number }, status: "open" }, data: { status: "closed", closedAt: new Date() } });
+    if (r.count === 0) return { ok: false, error: "There is no open return request on this order." };
+    await db.auditLog.create({ data: { staffId: s.id, username: s.username, action: "return.dismiss", entity: "order", entityId: String(number) } });
+    return { ok: true };
   });
 }
 

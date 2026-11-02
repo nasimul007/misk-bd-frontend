@@ -10,6 +10,7 @@ import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
 import { lookupOrdersAction, retryPaymentAction } from "@/app/actions/orders";
 import { useSession } from "@/lib/auth";
+import { OrderActions } from "@/components/track/OrderActions";
 import { OrderProgress } from "@/components/track/OrderProgress";
 import { orderTokens, type Order } from "@/lib/orders";
 
@@ -66,7 +67,9 @@ function PayPrompt({ order }: { order: Order }) {
 export function OrderReceipt({ id }: { id: string }) {
   const money = useMoney();
   const currency = useCurrency();
-  const order = useOrder(id);
+  const loaded = useOrder(id);
+  const [updated, setUpdated] = useState<Order | null>(null); // the order as it is after the customer cancelled, asked for a return, …
+  const order = updated && loaded && updated.id === loaded.id ? updated : loaded;
 
   if (order === undefined) return <div style={{ minHeight: "50vh" }} aria-busy="true" />;
   if (order === null) {
@@ -86,15 +89,33 @@ export function OrderReceipt({ id }: { id: string }) {
   const t = order.totals;
   const facts: [string, string][] = [["Order", order.id], ["Payment", payLabel], ["Ship to", order.division], ["Est. delivery", estimateFor(order.intl, order.division)]];
 
+  // What the top of the page says follows where the order is, so a delivered order never says "we'll confirm it shortly".
+  const waiting = order.status === "pending";
+  const headline = lapsed ? "Order cancelled"
+    : unpaid ? "Almost there"
+    : order.status === "cancelled" ? "Order cancelled"
+    : order.status === "returned" ? "Order returned"
+    : order.status === "delivered" ? "Your order was delivered"
+    : order.status === "shipped" ? "Your order is on its way"
+    : order.status === "confirmed" || order.status === "packed" ? "Your order is confirmed"
+    : online ? "Thank you — payment received" : "Thank you — order received";
+  const statusLine = waiting ? <>We&apos;ll confirm it by phone{order.email ? " and email" : ""} shortly.</>
+    : order.status === "confirmed" ? "We're getting it ready."
+    : order.status === "packed" ? "It's packed and will be handed to the courier soon."
+    : order.status === "shipped" ? "It's with the courier now."
+    : order.status === "delivered" ? "Thank you for shopping with Misk BD."
+    : order.status === "cancelled" ? "This order was cancelled."
+    : "This order was returned.";
+
   return (
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 32 }}>
         <div className="lux-glass lux-glass--gold inline-flex items-center justify-center" style={{ width: 72, height: 72, borderRadius: "50%", color: "var(--lux-gold)", margin: "0 auto 20px" }}><Check size={34} /></div>
-        <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, margin: "0 0 8px" }}>{lapsed ? "Order cancelled" : unpaid ? "Almost there" : online ? "Thank you — payment received" : "Thank you — order received"}</h1>
+        <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, margin: "0 0 8px" }}>{headline}</h1>
         <p style={{ color: "var(--lux-ink-muted)" }}>
           {lapsed
             ? <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong> was cancelled because the payment wasn&apos;t received in time. You can place it again from the shop.</>
-            : <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong>. {unpaid ? "It's saved, and waiting for your payment." : <>We&apos;ll confirm it by phone{order.email ? " and email" : ""} shortly.</>}</>}
+            : <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong>. {unpaid ? "It's saved, and waiting for your payment." : statusLine}</>}
         </p>
       </div>
       {unpaid && <PayPrompt order={order} />}
@@ -110,6 +131,8 @@ export function OrderReceipt({ id }: { id: string }) {
           <div style={{ color: "var(--lux-ink)", fontWeight: 500 }}>{order.name}</div>
           <div>{order.phone}</div>
           <div>{order.address}</div>
+          {order.contactless && <div>Contactless delivery: leave at the door</div>}
+          {order.note && <div style={{ marginTop: 6, fontStyle: "italic" }}>&ldquo;{order.note}&rdquo;</div>}
         </div>
         <ul className="flex flex-col gap-3" style={{ listStyle: "none", margin: 0, padding: "18px 0" }}>
           {order.items.map((i) => (
@@ -132,6 +155,8 @@ export function OrderReceipt({ id }: { id: string }) {
         </div>
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
       </div>
+
+      <OrderActions order={order} proof={() => ({ token: orderTokens.refs().find((r) => r.no === order.id)?.token })} onUpdate={setUpdated} />
 
       <div className="flex flex-wrap justify-center gap-3.5" style={{ marginTop: 28 }}>
         <Link href="/shop" className="lux-btn-fill lux-focus">Continue shopping</Link>

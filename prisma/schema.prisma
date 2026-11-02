@@ -319,10 +319,13 @@ model Order {
   shipPostal     String?              @db.VarChar(20)
   shipStreet     String               @db.VarChar(255)
   etaText        String               @default("") @db.VarChar(40)
+  deliveryNote   String?              @db.VarChar(300) // what the customer asked the rider to know
+  contactless    Boolean              @default(false) // leave at the door / no hand-over
   paymentDueAt   DateTime?            @db.Timestamptz // online payment must land by then, or the order is cancelled and stock released
   items          OrderItem[]
   history        OrderStatusHistory[]
   payments       Payment[]
+  returnRequests ReturnRequest[]
   confirmedAt    DateTime?            @db.Timestamptz
   shippedAt      DateTime?            @db.Timestamptz
   deliveredAt    DateTime?            @db.Timestamptz
@@ -333,6 +336,22 @@ model Order {
   @@index([customerId, createdAt])
   @@index([status, createdAt])
   @@map("orders")
+}
+
+// A customer asking to send a delivered order back. Staff see it on the order and settle it with the
+// usual "returned" status; the request is closed when they do (or dismiss it).
+model ReturnRequest {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String    @db.Uuid
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason    String    @db.VarChar(300)
+  status    String    @default("open") @db.VarChar(10) // open | closed
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  closedAt  DateTime? @db.Timestamptz
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@map("return_requests")
 }
 
 // Snapshot of what was bought, so history survives later edits to the product.

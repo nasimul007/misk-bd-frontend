@@ -5,7 +5,10 @@ import { db } from "@/lib/db";
 import { bdLocal, computeTotals, estimateFor, validate, type CheckoutForm, type FormErrors } from "@/lib/checkout";
 import { discountArgs, productArgs, toDiscount, toProduct } from "@/lib/data/mappers";
 import { priceInfo } from "@/lib/pricing";
+import { getPolicy } from "@/lib/server/policy";
+import { sslConfig } from "@/lib/server/sslcommerz";
 import type { FreshLine, Order } from "@/lib/orders";
+import type { OrderPolicy } from "@/lib/types";
 
 // Order creation. The browser only says WHAT it wants (slug, size, qty) and WHERE it ships; every price,
 // discount, shipping fee and stock check is recomputed here from the database.
@@ -54,6 +57,8 @@ export function parseInput(raw: unknown): PlaceOrderInput | null {
     division: str(f.division, 60), district: str(f.district, 60), thana: str(f.thana, 60),
     country: str(f.country, 80), region: str(f.region, 80), city: str(f.city, 80), postal: str(f.postal, 20),
     street: str(f.street, 300),
+    note: str(f.note, 300).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ""),
+    contactless: f.contactless === true,
     pay: str(f.pay, 12) as CheckoutForm["pay"],
   };
   return { lines: [...merged.values()], form: clean, expectedTotal: typeof expectedTotal === "number" ? expectedTotal : NaN };
@@ -152,6 +157,8 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
         shipPostal: f.intl ? f.postal.trim() : null,
         shipStreet: f.street.trim(),
         etaText: estimateFor(f.intl, f.division),
+        deliveryNote: f.note.trim() || null,
+        contactless: f.contactless,
         items: {
           create: priced.map(({ line, row, product, info }) => ({
             productId: row.id,
@@ -184,11 +191,24 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
   });
 }
 
-const withDetail = { items: true, history: { select: { status: true, createdAt: true }, orderBy: { createdAt: "asc" } } } satisfies Prisma.OrderInclude;
+const withDetail = {
+  items: true,
+  history: { select: { status: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+  returnRequests: { where: { status: "open" }, select: { id: true } },
+} satisfies Prisma.OrderInclude;
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof withDetail }>;
 
 /** Row to the shape the receipt and account pages already render. */
-function toOrder(o: OrderRow): Order {
+/** Whether the customer may still cancel under the owner's policy. */
+export const cancellable = (status: string, policy: OrderPolicy) =>
+  policy.customerCancel === "pending" ? status === "pending" : policy.customerCancel === "confirmed" ? status === "pending" || status === "confirmed" : false;
+
+const DAY = 86_400_000;
+/** Delivered, inside the return window, and no request already open. */
+const returnable = (o: OrderRow, policy: OrderPolicy) =>
+  o.status === "delivered" && policy.returnDays > 0 && !!o.deliveredAt && Date.now() - o.deliveredAt.getTime() <= policy.returnDays * DAY && o.returnRequests.length === 0;
+
+function toOrder(o: OrderRow, policy: OrderPolicy): Order {
   const intl = o.shipKind === "intl";
   const country = o.shipCountry ?? "Bangladesh";
   return {
@@ -210,6 +230,12 @@ function toOrder(o: OrderRow): Order {
     address: intl
       ? [o.shipStreet, o.shipCity, o.shipRegion, o.shipPostal, country].filter(Boolean).join(", ")
       : [o.shipStreet, o.shipUpazila, o.shipDistrict, o.shipDivision].filter(Boolean).join(", "),
+    note: o.deliveryNote ?? "",
+    contactless: o.contactless,
+    canCancel: cancellable(o.status, policy),
+    canReturn: returnable(o, policy),
+    returnRequested: o.returnRequests.length > 0,
+    canPayOnline: o.paymentMethod === "cod" && o.paymentStatus === "cod_pending" && ["pending", "confirmed", "packed", "shipped"].includes(o.status) && sslConfig() !== null,
   };
 }
 
@@ -219,15 +245,6 @@ const tokenMatches = (stored: string | null, token: string) => {
   const b = Buffer.from(hash(token), "hex");
   return a.length === b.length && timingSafeEqual(a, b);
 };
-
-/** The order row, but only for someone who can prove it is theirs: its owner, or the holder of its guest token. */
-export async function findOrderFor(no: string, token: string, customerId?: string) {
-  const n = parseOrderNo(no);
-  if (n === null) return null;
-  const row = await db.order.findUnique({ where: { number: n } });
-  if (!row) return null;
-  return (customerId && row.customerId === customerId) || (token && tokenMatches(row.guestTokenHash, token)) ? row : null;
-}
 
 type Ref = { no: string; token: string };
 const cleanRefs = (refs: Ref[]) =>
@@ -245,9 +262,10 @@ export async function findOrders(refs: Ref[], customerId?: string): Promise<Orde
   if (!wanted.length) return [];
   const rows = await db.order.findMany({ where: { number: { in: wanted.map((w) => w.n) } }, include: withDetail, orderBy: { createdAt: "desc" } });
   const tokenFor = new Map(wanted.map((w) => [w.n, w.token]));
+  const policy = await getPolicy();
   return rows
     .filter((r) => (customerId && r.customerId === customerId) || (tokenFor.get(r.number) && tokenMatches(r.guestTokenHash, tokenFor.get(r.number)!)))
-    .map(toOrder);
+    .map((r) => toOrder(r, policy));
 }
 
 /** A customer's own orders, plus any guest orders this browser can prove it placed. */
@@ -255,7 +273,8 @@ export async function ordersFor(customerId: string, refs: Ref[] = []): Promise<O
   const mine = await db.order.findMany({ where: { customerId }, include: withDetail, orderBy: { createdAt: "desc" }, take: 100 });
   const mineNos = new Set(mine.map((o) => o.number));
   const guest = await findOrders(refs.filter((r) => !mineNos.has(parseOrderNo(r?.no) ?? -1)));
-  return [...mine.map(toOrder), ...guest].sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+  const policy = await getPolicy();
+  return [...mine.map((r) => toOrder(r, policy)), ...guest].sort((a, b) => b.placedAt.localeCompare(a.placedAt));
 }
 
 /** On sign-in, attach guest orders this browser holds tokens for to the customer. Never touches an order that already has an owner. */
@@ -291,33 +310,91 @@ export async function restockLines(
   }
 }
 
-// ───────── Track my order ─────────
+// ───────── Proving an order is yours, then acting on it ─────────
 
 const lastDigits = (v: string, n = 10) => v.replace(/\D/g, "").slice(-n);
 const WINDOW = 15 * 60_000;
 
-export type TrackResult = { ok: true; order: Order } | { ok: false; message: string };
+/** How a caller proves an order is theirs: the guest token from checkout, or the phone it was placed with. A signed-in owner needs neither. */
+export type Proof = { token?: string; phone?: string };
+
+type Found = { ok: true; row: OrderRow } | { ok: false; message: string };
+const NOT_FOUND = "We couldn't find an order with those details. Check the order number and the phone number you ordered with.";
 
 /**
- * Look an order up by number plus the phone it was placed with, or as its signed-in owner. The order number
- * alone grants nothing, so a wrong guess is counted per order and per caller, and too many are refused.
+ * The one door every customer-side order action goes through. The order number alone grants nothing: the
+ * caller must be the signed-in owner, hold the order's guest token, or give the phone number it was placed with.
+ * Wrong phone guesses are counted per order and per caller, and too many are refused.
  */
-export async function trackOrder(no: string, phone: string, customerId: string | undefined, caller: string): Promise<TrackResult> {
-  const notFound: TrackResult = { ok: false, message: "We couldn't find an order with those details. Check the order number and the phone number you ordered with." };
+export async function authorizeOrder(no: string, proof: Proof, customerId: string | undefined, caller: string): Promise<Found> {
   const n = parseOrderNo(no.trim().toUpperCase().replace(/^(\d{5,9})$/, "MB-$1"));
-  if (n === null) return notFound;
+  if (n === null) return { ok: false, message: NOT_FOUND };
+  const row = await db.order.findUnique({ where: { number: n }, include: withDetail });
+  if (row && customerId && row.customerId === customerId) return { ok: true, row };
+  if (row && proof.token && tokenMatches(row.guestTokenHash, proof.token.slice(0, 100))) return { ok: true, row };
 
   const keys = [`track:order:${n}`, `track:caller:${caller}`];
   const since = new Date(Date.now() - WINDOW);
   const [perOrder, perCaller] = await Promise.all(keys.map((identifier) => db.loginAttempt.count({ where: { identifier, success: false, at: { gt: since } } })));
   if (perOrder >= 5 || perCaller >= 20) return { ok: false, message: "Too many attempts. Please wait a few minutes and try again." };
 
-  const row = await db.order.findUnique({ where: { number: n }, include: withDetail });
-  const owner = !!customerId && row?.customerId === customerId;
-  const phoneOk = !!row && lastDigits(phone).length >= 7 && lastDigits(phone) === lastDigits(row.contactPhone);
-  if (!row || (!owner && !phoneOk)) {
+  const phone = proof.phone ?? "";
+  if (!row || lastDigits(phone).length < 7 || lastDigits(phone) !== lastDigits(row.contactPhone)) {
     await db.loginAttempt.createMany({ data: keys.map((identifier) => ({ identifier, success: false })) });
-    return notFound;
+    return { ok: false, message: NOT_FOUND };
   }
-  return { ok: true, order: toOrder(row) };
+  return { ok: true, row };
+}
+
+export type TrackResult = { ok: true; order: Order } | { ok: false; message: string };
+
+/** "Track my order": number plus phone, or the signed-in owner. */
+export async function trackOrder(no: string, phone: string, customerId: string | undefined, caller: string): Promise<TrackResult> {
+  const a = await authorizeOrder(no, { phone }, customerId, caller);
+  return a.ok ? { ok: true, order: toOrder(a.row, await getPolicy()) } : a;
+}
+
+const reload = async (id: string): Promise<Order> => toOrder(await db.order.findUniqueOrThrow({ where: { id }, include: withDetail }), await getPolicy());
+
+/** The customer cancels their own order, while the owner's policy still allows it. Stock goes back; a paid order is flagged for a refund. */
+export async function cancelOrder(no: string, proof: Proof, customerId: string | undefined, caller: string, why: string): Promise<TrackResult> {
+  const a = await authorizeOrder(no, proof, customerId, caller);
+  if (!a.ok) return a;
+  const policy = await getPolicy();
+  const reason = why.trim().slice(0, 200);
+
+  const done = await db.$transaction(async (tx): Promise<{ ok: true } | { ok: false; message: string }> => {
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM orders WHERE id = ${a.row.id}::uuid FOR UPDATE`);
+    const o = await tx.order.findUniqueOrThrow({ where: { id: a.row.id }, include: { items: true } });
+    if (!cancellable(o.status, policy)) {
+      return { ok: false, message: policy.customerCancel === "off" || o.status === "cancelled" || o.status === "delivered" || o.status === "returned"
+        ? (o.status === "cancelled" ? "This order is already cancelled." : "This order can't be cancelled online. Please contact us.")
+        : "This order is already being prepared, so it can't be cancelled online. Please contact us." };
+    }
+    await restockLines(tx, o.items, o.number, `Order ${orderNo(o.number)} cancelled by the customer`, { username: "customer" });
+    if (o.confirmedAt) for (const i of o.items) if (i.productId) await tx.product.update({ where: { id: i.productId }, data: { soldCount: { decrement: i.qty } } });
+    await tx.payment.updateMany({ where: { orderId: o.id, status: "pending" }, data: { status: "failed" } });
+    const paid = o.paymentStatus === "paid";
+    await tx.order.update({ where: { id: o.id }, data: { status: "cancelled", cancelledAt: new Date(), paymentDueAt: null, ...(paid || o.paymentMethod === "cod" ? {} : { paymentStatus: "failed" }) } });
+    await tx.orderStatusHistory.create({ data: { orderId: o.id, status: "cancelled", note: `Cancelled by the customer${reason ? `: ${reason}` : ""}${paid ? ". Paid online, so a refund is due." : ""}` } });
+    return { ok: true };
+  });
+  return done.ok ? { ok: true, order: await reload(a.row.id) } : done;
+}
+
+/** A delivered order the customer wants to send back, inside the return window. Staff settle it from the admin. */
+export async function requestReturn(no: string, proof: Proof, customerId: string | undefined, caller: string, why: string): Promise<TrackResult> {
+  const reason = why.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (reason.length < 5) return { ok: false, message: "Please tell us briefly why you'd like to return it." };
+  const a = await authorizeOrder(no, proof, customerId, caller);
+  if (!a.ok) return a;
+  const policy = await getPolicy();
+  if (!returnable(a.row, policy)) {
+    return { ok: false, message: a.row.returnRequests.length ? "A return request is already open for this order." : a.row.status !== "delivered" ? "Returns can be requested once the order is delivered." : "The return window for this order has passed. Please contact us." };
+  }
+  await db.$transaction([
+    db.returnRequest.create({ data: { orderId: a.row.id, reason } }),
+    db.orderStatusHistory.create({ data: { orderId: a.row.id, status: a.row.status, note: `Customer asked to return this order: ${reason}` } }),
+  ]);
+  return { ok: true, order: await reload(a.row.id) };
 }

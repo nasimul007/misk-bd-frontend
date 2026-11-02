@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrderStatusPanel } from "@/components/admin/OrderStatusPanel";
+import { ReturnRequestPanel } from "@/components/admin/ReturnRequestPanel";
 import { PageHead, Panel, StatusBadge, dateTime } from "@/components/admin/ui";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
@@ -16,7 +17,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
   if (n === null) notFound();
   const o = await db.order.findUnique({
     where: { number: n },
-    include: { items: true, payments: { orderBy: { createdAt: "desc" } }, history: { orderBy: { createdAt: "desc" } }, customer: { select: { name: true, phone: true, email: true } } },
+    include: { items: true, returnRequests: { orderBy: { createdAt: "desc" } }, payments: { orderBy: { createdAt: "desc" } }, history: { orderBy: { createdAt: "desc" } }, customer: { select: { name: true, phone: true, email: true } } },
   });
   if (!o) notFound();
 
@@ -74,6 +75,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
           </Panel>
         </div>
         <div className="flex flex-col gap-6">
+          {o.returnRequests[0]?.status === "open" && (
+            <Panel title="Return requested"><ReturnRequestPanel orderNo={orderNo(o.number)} reason={o.returnRequests[0].reason} when={dateTime(o.returnRequests[0].createdAt)} /></Panel>
+          )}
           <Panel title="Update status"><OrderStatusPanel orderNo={orderNo(o.number)} next={nextStatuses(o.status)} /></Panel>
           <Panel title="Customer">
             {row("Name", o.contactName)}
@@ -84,10 +88,22 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
           <Panel title="Delivery">
             <p style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.6 }}>{address}</p>
             {row("Estimated", o.etaText || "—")}
+            {o.contactless && row("Hand-over", "Contactless: leave at the door")}
+            {o.deliveryNote && (
+              <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--lux-line)", background: "var(--lux-gold-soft)", fontSize: 14, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-gold)", marginBottom: 2 }}>Customer note</div>
+                {o.deliveryNote}
+              </div>
+            )}
           </Panel>
           <Panel title="Payment">
             {row("Method", o.paymentMethod)}
             {row("Status", o.paymentStatus.replace("_", " "))}
+            {(o.status === "cancelled" || o.status === "returned") && o.paymentStatus === "paid" && (
+              <div style={{ margin: "6px 0", padding: "10px 12px", borderRadius: 10, border: "1px solid color-mix(in oklch, var(--lux-warning) 40%, transparent)", background: "color-mix(in oklch, var(--lux-warning) 10%, transparent)", fontSize: 13.5, lineHeight: 1.5 }}>
+                <strong>Refund due.</strong> This order was paid online but is {o.status}. Refund it from the SSLCommerz merchant panel.
+              </div>
+            )}
             {row("Placed", dateTime(o.createdAt))}
             {o.paymentDueAt && o.paymentStatus !== "paid" && row("Pay by", dateTime(o.paymentDueAt))}
             {o.payments.filter((p) => p.providerRef).map((p) => row(`Attempt ${p.providerRef}`, p.status + (p.raw && typeof p.raw === "object" && "bank_tran_id" in p.raw ? ` · ${String((p.raw as Record<string, unknown>).bank_tran_id)}` : "")))}

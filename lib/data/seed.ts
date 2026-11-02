@@ -49,6 +49,7 @@ export const discounts: Discount[] = [
 ];
 
 export const siteContent: SiteContent = {
+  policy: { customerCancel: "pending", returnDays: 7 },
   hero: {
     eyebrow: "Maison de Parfum · Bangladesh",
     titleLine1: "A Small Attempt to Share",

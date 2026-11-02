@@ -1,11 +1,11 @@
-import { TRUST_ICON_NAMES } from "@/lib/trust-icons";
+import { TRUST_ICON_NAMES } from "@/lib/trust-icon-names";
 import type { SiteContent } from "@/lib/types";
 
 // Validation for the owner-editable storefront blocks. Everything arrives from a browser, so each block is
 // rebuilt field by field: wrong types become empty strings, lengths are capped, images must be site paths
 // and links must be https. The same function checks data on the way in and again when it is read back.
 
-export const BLOCK_KEYS = ["hero", "trust", "manifesto", "sectionsMeta", "categories", "testimonials", "cta", "footer"] as const;
+export const BLOCK_KEYS = ["hero", "trust", "manifesto", "sectionsMeta", "categories", "testimonials", "cta", "footer", "policy"] as const;
 export type BlockKey = (typeof BLOCK_KEYS)[number];
 
 type Parsed<K extends BlockKey> = SiteContent[K];
@@ -77,6 +77,13 @@ export function parseBlock(key: string, raw: unknown): BlockResult {
       if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return { ok: false, error: "Enter a valid email address." };
       if (!urlOk(data.facebook) || !urlOk(data.instagram)) return { ok: false, error: "Social links must start with https://." };
       return { ok: true, data };
+    }
+    case "policy": {
+      const when = str(d.customerCancel, 12);
+      const days = typeof d.returnDays === "number" ? d.returnDays : Number(d.returnDays);
+      if (when !== "pending" && when !== "confirmed" && when !== "off") return { ok: false, error: "Choose when customers may cancel." };
+      if (!Number.isInteger(days) || days < 0 || days > 60) return { ok: false, error: "The return window must be a whole number of days, 0 to 60." };
+      return { ok: true, data: { customerCancel: when, returnDays: days } };
     }
     default:
       return { ok: false, error: "Unknown content block." };
