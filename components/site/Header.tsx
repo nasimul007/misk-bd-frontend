@@ -36,15 +36,16 @@ export function Header({ sections = [] }: { sections?: Section[] }) {
     return () => window.removeEventListener("scroll", on);
   }, []);
 
-  // The Collections panel closes on a click outside the header, or Escape.
+  // The Collections panel and the phone menu close on a click or tap outside the header, or on Escape,
+  // the same as pressing their own close button.
   useEffect(() => {
-    if (!coll) return;
-    const away = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setColl(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setColl(false); };
+    if (!coll && !open) return;
+    const away = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setColl(false); setOpen(false); } };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setColl(false); setOpen(false); } };
     document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
-  }, [coll]);
+  }, [coll, open]);
   const closeAll = () => { setColl(false); setOpen(false); };
 
   return (
