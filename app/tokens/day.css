@@ -100,7 +100,7 @@
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
 }
 [data-lux="day"] .lux-navbar.is-scrolled {
-  background: linear-gradient(180deg, rgba(251,247,239,0.94), rgba(245,238,227,0.86));
+  background: linear-gradient(180deg, rgba(251,247,239,0.99), rgba(245,238,227,0.97));
   border-bottom-color: var(--lux-line);
   box-shadow: 0 14px 34px -28px rgba(58,47,34,0.5);
 }

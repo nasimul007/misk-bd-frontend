@@ -58,7 +58,7 @@ export function Header({ sections = [] }: { sections?: Section[] }) {
           </span>
         </div>
       </div>
-      <div className={`lux-navbar${scrolled ? " is-scrolled" : ""}`}>
+      <div className={`lux-navbar${scrolled || open || coll ? " is-scrolled" : ""}`}>
         <div className="alignment" style={{ paddingInline: 16 }}>
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 lg:grid-cols-[1fr_auto_1fr]" style={{ height: scrolled ? 60 : 76, transition: "height var(--dur-slow) var(--ease-lux)" }}>
             <button className={`${btn} inline-flex lg:hidden`} style={iconBtn} onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>{open ? <X size={22} /> : <Menu size={22} />}</button>
@@ -84,7 +84,7 @@ export function Header({ sections = [] }: { sections?: Section[] }) {
           </div>
         </div>
         {open && (
-          <div className="lg:hidden" style={{ borderTop: "1px solid var(--lux-line)" }}>
+          <div className="lg:hidden" style={{ borderTop: "1px solid var(--lux-line)", background: "var(--lux-bg-2)", maxHeight: "calc(100vh - 110px)", overflowY: "auto" }}>
             <div className="alignment flex flex-col" style={{ padding: "10px 16px 18px" }}>
               {links.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="lux-navlink" style={{ padding: "12px 4px", fontSize: 16, borderBottom: "1px solid var(--lux-line)" }}>{l.label}</Link>

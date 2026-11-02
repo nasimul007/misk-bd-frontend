@@ -133,7 +133,7 @@
   transition: background var(--dur-slow) var(--ease-lux), backdrop-filter var(--dur-slow) var(--ease-lux), border-color var(--dur-slow) ease, box-shadow var(--dur-slow) ease;
 }
 .lux-navbar.is-scrolled {
-  background: linear-gradient(180deg, color-mix(in oklch, var(--lux-bg) 74%, transparent), color-mix(in oklch, var(--lux-bg) 56%, transparent));
+  background: linear-gradient(180deg, color-mix(in oklch, var(--lux-bg) 97%, transparent), color-mix(in oklch, var(--lux-bg) 94%, transparent));
   border-bottom-color: var(--lux-line);
   backdrop-filter: blur(28px) saturate(1.85);
   -webkit-backdrop-filter: blur(28px) saturate(1.85);
@@ -170,7 +170,7 @@
   box-shadow: 0 1px 0 0 rgba(255,255,255,0.08) inset, var(--shadow-card);
 }
 .glass-panel {
-  background: rgba(14,14,16,0.55);
+  background: rgb(14, 12, 11);
   border: 1px solid rgba(255,255,255,0.1);
   backdrop-filter: blur(22px) saturate(1.15);
   -webkit-backdrop-filter: blur(22px) saturate(1.15);
