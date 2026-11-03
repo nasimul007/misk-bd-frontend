@@ -8,7 +8,9 @@ import { unitOf } from "@/lib/units";
 import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ProductBuy } from "@/components/product/ProductBuy";
+import { RecentlyViewed } from "@/components/product/RecentlyViewed";
 import { Reviews, Stars } from "@/components/product/Reviews";
+import { ShareButton } from "@/components/product/ShareButton";
 import { ProductGallery } from "@/components/product/ProductGallery";
 
 export async function generateStaticParams() {
@@ -107,6 +109,8 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
             )}
           </div>
 
+          <ShareButton title={product.title} />
+
           <ProductBuy product={product} intro={<p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--lux-ink-muted)", margin: 0 }}>{product.description}</p>} />
 
           <div className="lux-glass lux-glass--gold flex items-start gap-3.5" style={{ borderRadius: 16, padding: "18px 20px" }}>
@@ -137,7 +141,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
         </div>
       </div>
 
-      <div className="alignment" style={{ padding: "0 24px" }}><Reviews reviews={reviews} average={product.rating} count={product.reviews} /></div>
+      <Reviews reviews={reviews} average={product.rating} count={product.reviews} />
 
       {related.length > 0 && (
         <section style={{ marginTop: 72 }}>
@@ -147,6 +151,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
           </div>
         </section>
       )}
+      <RecentlyViewed slug={product.id} />
     </div>
   );
 }

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/lib/auth";
-import { ChevronDown, Menu, Phone, MessageCircle, Plane, Search, User, X } from "lucide-react";
+import { ChevronDown, Menu, Phone, MessageCircle, Plane, User, X } from "lucide-react";
 import type { Section } from "@/lib/types";
 import { ModeToggle } from "@/components/ui/ModeToggle";
 import { CurrencyToggle } from "@/components/ui/CurrencyToggle";
 import { CartButton } from "@/components/cart/CartButton";
+import { SearchBox } from "./SearchBox";
 import { Logo } from "./Logo";
 
 const links = [
@@ -78,7 +79,7 @@ export function Header({ sections = [] }: { sections?: Section[] }) {
             </Link>
             <div className="flex items-center gap-1" style={{ justifySelf: "end" }}>
               <span className="hidden lg:inline-flex items-center gap-2"><CurrencyToggle /><ModeToggle /></span>
-              <Link href="/shop" className={`${btn} inline-flex`} style={iconBtn} aria-label="Search"><Search size={19} /></Link>
+              <SearchBox />
               <Link href={account} style={iconBtn} aria-label={session ? "My account" : "Sign in"} className={`${btn} hidden lg:inline-flex`}><User size={19} /></Link>
               <CartButton />
             </div>

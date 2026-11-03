@@ -23,6 +23,7 @@ type CartState = {
   drawerOpen: boolean;
   toast: string | null;
   add: (product: PricedProduct, size?: string | null, qty?: number) => void;
+  addMany: (lines: { product: PricedProduct; size: string; qty: number }[], skipped: number) => void;
   remove: (key: string) => void;
   changeQty: (key: string, delta: number) => void;
   clear: () => void;
@@ -74,6 +75,15 @@ export const useCart = create<CartState>()(
             : [...s.items, { key, id: product.id, title: product.title, image: product.image, size: info.size, price: info.price, original: info.original, qty: next, stock }],
           toast: capped ? `Only ${stock} of ${product.title} (${info.size}) in stock` : `${product.title} · ${info.size} added to cart`,
         }));
+      },
+      // "Buy again": put several lines in the bag at once, then say what happened in a single message.
+      addMany: (lines, skipped) => {
+        for (const l of lines) get().add(l.product, l.size, l.qty);
+        const n = lines.length;
+        set({
+          toast: n === 0 ? "None of those items are available right now" : `${n} item${n === 1 ? "" : "s"} added to your bag${skipped ? `, ${skipped} unavailable` : ""}`,
+          drawerOpen: n > 0,
+        });
       },
       remove: (key) => set((s) => ({ items: s.items.filter((i) => i.key !== key) })),
       changeQty: (key, delta) =>

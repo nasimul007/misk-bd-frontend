@@ -12,6 +12,7 @@ import { addAddressAction, listAddressesAction, myOrdersAction, removeAddressAct
 import { setSession, signOut, useSession, type Session } from "@/lib/auth";
 import { useMoney } from "@/lib/currency";
 import { orderTokens, type Order } from "@/lib/orders";
+import { BuyAgain } from "@/components/track/BuyAgain";
 
 type Tab = "orders" | "profile" | "addresses";
 const tabs: { id: Tab; label: string; Icon: typeof Package }[] = [
@@ -65,7 +66,7 @@ function Orders() {
             </div>
             <Badge tone={o.status === "delivered" ? "success" : o.status === "cancelled" || o.status === "returned" ? "danger" : "warning"}>{o.status}</Badge>
             <div className="font-display" style={{ fontSize: 18, color: "var(--lux-gold)", minWidth: 90, textAlign: "right" }}>{money(o.totals.total)}</div>
-            <Button variant="ghost" size="sm" href="/shop">Reorder</Button>
+            <BuyAgain orderId={o.id} size="sm" proof={() => ({ token: orderTokens.refs().find((r) => r.no === o.id)?.token })} />
           </li>
         );
       })}

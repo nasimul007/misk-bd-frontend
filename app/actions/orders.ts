@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { authorizeOrder, cancelOrder, findOrders, parseInput, parseOrderNo, placeOrder, requestReturn, submitReview, trackOrder, type PlaceOrderResult, type Proof, type TrackResult } from "@/lib/server/orders";
 import { expireUnpaid, sslEnabled, startSslcommerz } from "@/lib/server/payments";
 import { updateTag } from "next/cache";
+import { getProduct } from "@/lib/data";
+import type { PricedProduct } from "@/lib/types";
 import type { Order } from "@/lib/orders";
 
 export async function placeOrderAction(raw: unknown): Promise<PlaceOrderResult> {
@@ -111,6 +113,28 @@ export async function submitReviewAction(orderId: unknown, proof: unknown, produ
     return r;
   } catch (e) {
     console.error("submitReview failed", e);
+    return { ok: false, message: "Something went wrong. Please try again." };
+  }
+}
+
+/** The items of a past order as they can be bought today: current prices and stock, minus anything unavailable. */
+export async function reorderAction(orderId: unknown, proof: unknown): Promise<{ ok: true; lines: { product: PricedProduct; size: string; qty: number }[]; skipped: number } | { ok: false; message: string }> {
+  if (typeof orderId !== "string" || orderId.length > 20) return { ok: false, message: "That order could not be found." };
+  try {
+    const user = await currentUser();
+    const found = await authorizeOrder(orderId, proofOf(proof), user?.id, await callerId());
+    if (!found.ok) return found;
+    const lines: { product: PricedProduct; size: string; qty: number }[] = [];
+    let skipped = 0;
+    for (const i of found.row.items) {
+      const product = await getProduct(i.slug);
+      const v = product?.variants.find((x) => x.size === i.size);
+      if (!product || !v || v.stock <= 0) { skipped++; continue; }
+      lines.push({ product, size: i.size, qty: Math.min(i.qty, v.stock) });
+    }
+    return { ok: true, lines, skipped };
+  } catch (e) {
+    console.error("reorder failed", e);
     return { ok: false, message: "Something went wrong. Please try again." };
   }
 }
