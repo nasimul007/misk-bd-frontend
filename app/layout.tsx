@@ -26,14 +26,18 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "MISK BD — Maison de Parfum, Bangladesh", description: SITE_DESCRIPTION, images: [DEFAULT_SHARE_IMAGE] },
 };
 
-// Applies the saved day/night mode before first paint to avoid a flash.
-const modeScript = `try{if(localStorage.getItem("misk_mode")==="day")document.body.dataset.lux="day"}catch(e){}`;
+// Applies the saved day/night mode before first paint to avoid a flash. The browser runs this script while it
+// parses the page (it sits first inside <body>), so the right colours are there before anything is drawn.
+// It is written as markup inside a hidden element rather than as a <script> element in the component, because
+// React warns whenever it creates a script element itself on the client, and it never needs to: a later
+// re-render must not (and cannot) run it again.
+const modeScript = `<script>try{if(localStorage.getItem("misk_mode")==="day")document.body.dataset.lux="day"}catch(e){}</script>`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${bodoni.variable} ${poppins.variable}`}>
       <body data-lux="oxblood" className="lux-shell min-h-screen" suppressHydrationWarning>
-        <script dangerouslySetInnerHTML={{ __html: modeScript }} />
+        <div hidden suppressHydrationWarning dangerouslySetInnerHTML={{ __html: modeScript }} />
         <a href="#main" className="skip-link">Skip to content</a>
         {children}
       </body>
