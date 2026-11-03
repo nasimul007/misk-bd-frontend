@@ -34,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${bodoni.variable} ${poppins.variable}`}>
       <body data-lux="oxblood" className="lux-shell min-h-screen" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: modeScript }} />
+        <a href="#main" className="skip-link">Skip to content</a>
         {children}
       </body>
     </html>

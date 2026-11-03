@@ -17,7 +17,7 @@ export function ProductCard({ product }: { product: PricedProduct }) {
       <Link href={`/product/${id}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}>
         <div style={{ position: "relative", aspectRatio: "1 / 1", width: "100%", overflow: "hidden" }}>
           <div style={{ position: "absolute", left: 10, top: 10, zIndex: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-            {discountLabel && <Badge tone="danger" style={{ background: "var(--lux-danger)", color: "#fff", border: "none" }}>{discountLabel}</Badge>}
+            {discountLabel && <Badge tone="danger" style={{ background: "color-mix(in oklch, var(--lux-danger) 55%, black)", color: "#fff", border: "none" }}>{discountLabel}</Badge>}
             {bestseller && <Badge tone="gold">Bestseller</Badge>}
             {stock > 0 && stock <= 5 && <Badge tone="glass">Few left</Badge>}
           </div>

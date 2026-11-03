@@ -1,31 +1,19 @@
 import Link from "next/link";
-import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
-import { PageHead, Panel, TableWrap, dateTime, td, th } from "@/components/admin/ui";
-import { Badge } from "@/components/ui/Badge";
+import { OrdersTable } from "@/components/admin/OrdersTable";
+import { PageHead, Panel, dateTime } from "@/components/admin/ui";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 import { nextStatuses, STATUSES } from "@/lib/order-flow";
-import { orderNo, parseOrderNo } from "@/lib/server/orders";
+import { orderWhere, parseOrderFilter as filter } from "@/lib/server/order-filter";
+import { orderNo } from "@/lib/server/orders";
 import { requireStaffPage } from "@/lib/server/staff-session";
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
   await requireStaffPage();
   const sp = await searchParams;
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-  const status = STATUSES.find((s) => s === one(sp.status));
-  const q = one(sp.q).trim().slice(0, 40);
-  const returns = one(sp.returns) === "1"; // only orders with an open return request
-
-  const number = parseOrderNo(q.toUpperCase());
-  const digits = q.replace(/\D/g, "");
+  const { status, q, returns } = filter(sp);
   const orders = await db.order.findMany({
-    where: {
-      ...(status ? { status } : {}),
-      ...(returns ? { returnRequests: { some: { status: "open" } } } : {}),
-      ...(q
-        ? { OR: [...(number ? [{ number }] : []), ...(digits.length >= 4 ? [{ contactPhone: { contains: digits } }] : []), { contactName: { contains: q, mode: "insensitive" as const } }] }
-        : {}),
-    },
+    where: orderWhere({ status, q, returns }),
     include: { items: { select: { qty: true } }, returnRequests: { where: { status: "open" }, select: { id: true } } },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -41,7 +29,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
         {chip("All", "/admin/orders", !status && !returns)}
         {STATUSES.map((s) => chip(s, `/admin/orders?status=${s}`, s === status && !returns))}
         {chip("return requests", "/admin/orders?returns=1", returns)}
-        <form action="/admin/orders" className="flex gap-2" style={{ marginLeft: "auto" }}>
+        <a href={`/admin/orders/export?${new URLSearchParams({ ...(status ? { status } : {}), ...(q ? { q } : {}), ...(returns ? { returns: "1" } : {}) })}`} className="lux-btn lux-focus" style={{ marginLeft: "auto", padding: "0.5rem 1.1rem", fontSize: "0.85rem" }} download>Export CSV</a>
+        <form action="/admin/orders" className="flex gap-2">
           {status && <input type="hidden" name="status" value={status} />}
           <input name="q" defaultValue={q} placeholder="Order no., phone or name" aria-label="Search orders" className="lux-input" style={{ width: 220 }} />
           <button className="lux-btn lux-focus" style={{ padding: "0.5rem 1.2rem", fontSize: "0.85rem" }}>Search</button>
@@ -49,27 +38,13 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       </div>
       <Panel>
         {orders.length === 0 ? <p style={{ margin: 0, color: "var(--lux-ink-muted)" }}>No orders match.</p> : (
-          <TableWrap>
-            <thead><tr><th style={th}>Order</th><th style={th}>Customer</th><th style={th}>Division</th><th style={th}>Payment</th><th style={th}>Total</th><th style={th}>Status</th></tr></thead>
-            <tbody>
-              {orders.map((o) => {
-                const n = o.items.reduce((t, i) => t + i.qty, 0);
-                return (
-                <tr key={o.id}>
-                  <td style={td}>
-                    <Link href={`/admin/orders/${orderNo(o.number)}`} className="lux-link">{orderNo(o.number)}</Link>
-                    <div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{dateTime(o.createdAt)} · {n} item{n === 1 ? "" : "s"}</div>
-                  </td>
-                  <td style={td}>{o.contactName}<div style={{ fontSize: 12, color: "var(--lux-ink-muted)" }}>{o.contactPhone}</div></td>
-                  <td style={{ ...td, color: "var(--lux-ink-muted)" }}>{o.shipDivision ?? o.shipCountry ?? "—"}</td>
-                  <td style={td}><Badge tone={o.paymentMethod === "cod" ? "warning" : "glass"}>{o.paymentMethod}</Badge><div style={{ fontSize: 12, color: "var(--lux-ink-muted)", marginTop: 2 }}>{o.paymentStatus.replace("_", " ")}</div></td>
-                  <td style={td}>{money(o.total)}</td>
-                  <td style={td}><OrderStatusSelect orderNo={orderNo(o.number)} status={o.status} next={nextStatuses(o.status)} />{o.returnRequests.length > 0 && <div style={{ marginTop: 6 }}><Badge tone="warning">Return requested</Badge></div>}</td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </TableWrap>
+          <OrdersTable
+            rows={orders.map((o) => ({
+              no: orderNo(o.number), placed: dateTime(o.createdAt), items: o.items.reduce((t, i) => t + i.qty, 0), name: o.contactName, phone: o.contactPhone,
+              division: o.shipDivision ?? o.shipCountry ?? "—", payMethod: o.paymentMethod, payStatus: o.paymentStatus.replace("_", " "), total: money(o.total),
+              status: o.status, next: nextStatuses(o.status), returnRequested: o.returnRequests.length > 0,
+            }))}
+          />
         )}
         {orders.length === 100 && <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--lux-ink-muted)" }}>Showing the latest 100. Narrow with a status or search.</p>}
       </Panel>

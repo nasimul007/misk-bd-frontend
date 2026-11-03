@@ -36,7 +36,7 @@ export function Footer({ content, sections }: { content: SiteContent["footer"]; 
           </div>
           {sections.length > 0 && (
             <div style={col}>
-              <h3 style={head}>Collections</h3>
+              <h2 style={head}>Collections</h2>
               {sections.map((s) => (
                 <div key={s.id} style={col}>
                   <Link href={`/shop?section=${s.id}`} style={link}>{s.name}</Link>
@@ -45,10 +45,10 @@ export function Footer({ content, sections }: { content: SiteContent["footer"]; 
               ))}
             </div>
           )}
-          <div style={col}><h3 style={head}>Categories</h3>{cats.map((c) => <Link key={c} href={`/shop?category=${encodeURIComponent(c)}`} style={link}>{c}</Link>)}</div>
-          <div style={col}><h3 style={head}>Help</h3>{help.map(([t, h]) => <Link key={t} href={h} style={link}>{t}</Link>)}</div>
+          <div style={col}><h2 style={head}>Categories</h2>{cats.map((c) => <Link key={c} href={`/shop?category=${encodeURIComponent(c)}`} style={link}>{c}</Link>)}</div>
+          <div style={col}><h2 style={head}>Help</h2>{help.map(([t, h]) => <Link key={t} href={h} style={link}>{t}</Link>)}</div>
           <div style={col}>
-            <h3 style={head}>Contact Us</h3>
+            <h2 style={head}>Contact Us</h2>
             <span style={{ ...link, display: "flex", gap: 10, alignItems: "flex-start" }}><MapPin size={17} /> {f.address}</span>
             <CopyText value={f.phone} label={`Copy phone number ${f.phone}`}><Phone size={17} /> {f.phone}</CopyText>
             {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer" style={{ ...link, display: "flex", gap: 10, alignItems: "center" }}><MessageCircle size={17} /> WhatsApp chat</a>}

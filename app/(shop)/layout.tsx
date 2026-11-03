@@ -10,7 +10,7 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <Header sections={content.sections} />
-      <main>{children}</main>
+      <main id="main" tabIndex={-1} style={{ outline: "none" }}>{children}</main>
       <Footer content={content.footer} sections={content.sections} />
       <ContactWidget phone={content.footer.phone} whatsapp={content.footer.whatsapp} email={content.footer.email} />
       <CartProvider />

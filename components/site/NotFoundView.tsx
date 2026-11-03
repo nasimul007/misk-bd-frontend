@@ -4,8 +4,9 @@ import { Logo } from "./Logo";
 
 /** The "page not found" screen: a way back, a search box, and the places people usually want. */
 export function NotFoundView({ withLogo = false }: { withLogo?: boolean }) {
+  const Wrap = withLogo ? "main" : "div"; // the standalone 404 has no shop layout around it, so it is its own main landmark
   return (
-    <div className="alignment" style={{ padding: "72px 24px 96px", textAlign: "center", color: "var(--lux-ink)", minHeight: withLogo ? "100vh" : undefined }}>
+    <Wrap id={withLogo ? "main" : undefined} className="alignment" style={{ padding: "72px 24px 96px", textAlign: "center", color: "var(--lux-ink)", minHeight: withLogo ? "100vh" : undefined }}>
       {withLogo && <Link href="/" aria-label="MISK BD home" style={{ display: "inline-flex", marginBottom: 40 }}><Logo size={56} /></Link>}
       <span className="lux-eyebrow">Error 404</span>
       <h1 className="font-display" style={{ fontSize: "clamp(2rem,5vw,3.2rem)", fontWeight: 500, margin: "14px 0 12px" }}>We couldn&apos;t find that page</h1>
@@ -22,6 +23,6 @@ export function NotFoundView({ withLogo = false }: { withLogo?: boolean }) {
         <Link href="/track" className="lux-btn lux-focus">Track my order</Link>
         <Link href="/" className="lux-btn lux-focus">Home</Link>
       </div>
-    </div>
+    </Wrap>
   );
 }

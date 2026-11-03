@@ -39,7 +39,7 @@ export function ProductBuy({ product, intro }: { product: PricedProduct; intro?:
           {qty > 1 && <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>({money(price)} each &times; {qty})</span>}
           {qty === 1 && !size && card.maxPrice > card.price && <span style={{ fontSize: 18, color: "var(--lux-ink-muted)" }}>&ndash; {money(card.maxPrice)}</span>}
           {size && qty === 1 && <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>{single ? size : `for ${size}`}</span>}
-          {saleLabel && <Badge tone="danger" style={{ background: "var(--lux-danger)", color: "#fff", border: "none", alignSelf: "center" }}>{saleLabel}</Badge>}
+          {saleLabel && <Badge tone="danger" style={{ background: "color-mix(in oklch, var(--lux-danger) 55%, black)", color: "#fff", border: "none", alignSelf: "center" }}>{saleLabel}</Badge>}
         </div>
         <StockPill stock={stock} />
       </div>

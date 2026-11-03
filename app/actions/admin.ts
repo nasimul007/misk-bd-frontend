@@ -54,8 +54,9 @@ export async function changePasswordAction(current: unknown, next: unknown): Pro
 // ───────── Orders ─────────
 
 
-export async function setOrderStatusAction(orderNumber: unknown, status: unknown, note: unknown): Promise<Result> {
-  return guarded(undefined, async (s) => {
+/** One status change, with every check the order needs (allowed move, stock, payment). Shared by the single and bulk actions. */
+async function transitionOrder(s: Awaited<ReturnType<typeof assertStaff>>, orderNumber: unknown, status: unknown, note: unknown): Promise<Result> {
+  {
     const number = typeof orderNumber === "string" ? parseOrderNo(orderNumber) : null;
     if (number === null || typeof status !== "string" || !STATUSES.includes(status as Status)) return { ok: false, error: "That change isn't valid." };
     const to = status as Status;
@@ -100,6 +101,25 @@ export async function setOrderStatusAction(orderNumber: unknown, status: unknown
       await tx.auditLog.create({ data: { staffId: s.id, username: s.username, action: "order.status", entity: "order", entityId: String(number), detail: { from: order.status, to } } });
       return { ok: true };
     });
+  }
+}
+
+export async function setOrderStatusAction(orderNumber: unknown, status: unknown, note: unknown): Promise<Result> {
+  return guarded(undefined, (s) => transitionOrder(s, orderNumber, status, note));
+}
+
+/** Apply one status to several orders. Each is checked on its own, so some can move while others are skipped with a reason. */
+export async function bulkSetOrderStatusAction(orderNumbers: unknown, status: unknown): Promise<Result<{ done: number; skipped: { no: string; reason: string }[] }>> {
+  return guarded(undefined, async (s) => {
+    const list = Array.isArray(orderNumbers) ? orderNumbers.filter((n): n is string => typeof n === "string").slice(0, 50) : [];
+    if (list.length === 0) return { ok: false, error: "Select at least one order." };
+    let done = 0;
+    const skipped: { no: string; reason: string }[] = [];
+    for (const no of list) {
+      const r = await transitionOrder(s, no, status, "");
+      if (r.ok) done++; else skipped.push({ no, reason: r.error });
+    }
+    return { ok: true, done, skipped };
   });
 }
 

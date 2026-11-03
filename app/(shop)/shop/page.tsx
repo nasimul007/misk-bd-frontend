@@ -50,6 +50,8 @@ async function Shop({ searchParams }: { searchParams: PageProps<"/shop">["search
         {!query.best && activeSub && <><ChevronRight size={13} /><span style={{ color: "var(--lux-gold)" }}>{activeSub.name}</span></>}
       </nav>
 
+      {!query.best && !activeSec && <h1 className="sr-only">{query.category ? `${query.category} fragrances` : query.q ? `Search results for ${query.q}` : "Shop all fragrances"}</h1>}
+
       {query.best && title("Maison Selections", "Best Sellers", "The scents our patrons return to — our most-loved fragrances, gathered in one place.")}
       {!query.best && activeSec && title(activeSub ? activeSec.name : "Collection", activeSub ? activeSub.name : activeSec.name, activeSub ? undefined : activeSec.blurb)}
 
