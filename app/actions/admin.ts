@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { NEXT, STATUSES, type Status } from "@/lib/order-flow";
 import { UNIT_IDS } from "@/lib/units";
 import { BLOCK_KEYS, parseBlock } from "@/lib/site-blocks";
-import { parseOrderNo, restockLines } from "@/lib/server/orders";
+import { parseOrderNo, recomputeRating, restockLines } from "@/lib/server/orders";
 import { audit, changeOwnPassword, createStaff, resetStaffPassword, revokeAllStaffSessions, staffLogin, type Result } from "@/lib/server/staff";
 import { assertStaff, Forbidden, startStaffSession, staffToken, stopStaffSession } from "@/lib/server/staff-session";
 
@@ -274,6 +274,33 @@ export async function deleteProductAction(slug: unknown): Promise<Result> {
     updateTag("catalogue");
     return { ok: true };
   });
+}
+
+// ───────── Reviews (any staff) ─────────
+
+async function changeReview(id: unknown, act: (tx: Prisma.TransactionClient, review: { id: string; productId: string }) => Promise<void>, action: string, who: { id: string; username: string }): Promise<Result> {
+  const key = text(id, 40);
+  if (!/^[0-9a-f-]{36}$/.test(key)) return { ok: false, error: "That review could not be found." };
+  const done = await db.$transaction(async (tx) => {
+    const r = await tx.review.findUnique({ where: { id: key }, select: { id: true, productId: true } });
+    if (!r) return false;
+    await act(tx, r);
+    await recomputeRating(tx, r.productId);
+    await tx.auditLog.create({ data: { staffId: who.id, username: who.username, action, entity: "review", entityId: key } });
+    return true;
+  });
+  if (!done) return { ok: false, error: "That review could not be found." };
+  updateTag("catalogue");
+  return { ok: true };
+}
+
+/** Hide a review from the shop (or show it again). A hidden review no longer counts towards the rating. */
+export async function setReviewVisibleAction(id: unknown, visible: unknown): Promise<Result> {
+  return guarded(undefined, (s) => changeReview(id, (tx, r) => tx.review.update({ where: { id: r.id }, data: { status: visible === true ? "visible" : "hidden" } }).then(() => undefined), visible === true ? "review.show" : "review.hide", s));
+}
+
+export async function deleteReviewAction(id: unknown): Promise<Result> {
+  return guarded(undefined, (s) => changeReview(id, (tx, r) => tx.review.delete({ where: { id: r.id } }).then(() => undefined), "review.delete", s));
 }
 
 // ───────── Discounts ─────────

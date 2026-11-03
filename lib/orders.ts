@@ -28,6 +28,7 @@ export type Order = {
   canCancel: boolean;
   canReturn: boolean;
   returnRequested: boolean;
+  toReview: { slug: string; title: string; image: string }[]; // delivered items the customer has not reviewed yet
   canPayOnline: boolean; // a Cash on Delivery order that can still be paid by card or mobile banking
 };
 

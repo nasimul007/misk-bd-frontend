@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, ClipboardList, LayoutDashboard, LayoutGrid, LayoutTemplate, Package, Percent, Shield, UserRound, type LucideIcon } from "lucide-react";
+import { Boxes, ClipboardList, MessageSquareText, LayoutDashboard, LayoutGrid, LayoutTemplate, Package, Percent, Shield, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { adminLogoutAction } from "@/app/actions/admin";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 
 const ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard, products: Package, sections: LayoutGrid, discounts: Percent, orders: ClipboardList,
-  inventory: Boxes, content: LayoutTemplate, staff: Shield, account: UserRound,
+  inventory: Boxes, reviews: MessageSquareText, content: LayoutTemplate, staff: Shield, account: UserRound,
 };
 
 type Item = { href: string; label: string; icon: string };

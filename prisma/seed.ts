@@ -39,8 +39,9 @@ async function main() {
       bestseller: !!p.bestseller,
       active: p.active,
       tags: p.tags,
-      ratingAvg: p.rating,
-      reviewCount: p.reviews,
+      // Ratings come from real reviews now, so a fresh catalogue starts at none.
+      ratingAvg: 0,
+      reviewCount: 0,
       lastingHours: p.lasting,
       projection: p.projection,
       concentration: p.concentration,

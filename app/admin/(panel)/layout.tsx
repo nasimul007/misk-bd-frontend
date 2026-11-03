@@ -38,6 +38,7 @@ async function Shell({ children }: { children: ReactNode }) {
           { href: "/admin/discounts", label: "Discounts", icon: "discounts" },
           { href: "/admin/orders", label: "Orders", icon: "orders" },
           { href: "/admin/inventory", label: "Inventory", icon: "inventory" },
+          { href: "/admin/reviews", label: "Reviews", icon: "reviews" },
           { href: "/admin/content", label: "Site content", icon: "content" },
           { href: "/admin/staff", label: "Staff access", icon: "staff" },
           { href: "/admin/account", label: "My account", icon: "account" },
@@ -46,6 +47,7 @@ async function Shell({ children }: { children: ReactNode }) {
           { href: "/admin", label: "Overview", icon: "overview" },
           { href: "/admin/orders", label: "Orders", icon: "orders" },
           { href: "/admin/inventory", label: "Inventory", icon: "inventory" },
+          { href: "/admin/reviews", label: "Reviews", icon: "reviews" },
           { href: "/admin/account", label: "My account", icon: "account" },
         ];
   return (

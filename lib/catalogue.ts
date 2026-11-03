@@ -4,7 +4,7 @@ import { UNITS } from "@/lib/units";
 export const CATEGORIES = ["Men's Perfume", "Women's Perfume", "Unisex", "Cologne", "Premium"] as const;
 export const FAMILIES = ["Oud & Amber", "Rose & Musk", "Woods & Incense", "Citrus & Leather", "White Florals"] as const;
 export const SORTS = [
-  { v: "popular", label: "Popularity", hint: "Most reviewed first" },
+  { v: "popular", label: "Popularity", hint: "Best selling first" },
   { v: "newest", label: "Newest", hint: "Latest arrivals" },
   { v: "price-asc", label: "Price: low to high", hint: "Gentlest first" },
   { v: "price-desc", label: "Price: high to low", hint: "Rarest first" },
@@ -111,7 +111,7 @@ export function filterProducts(all: PricedProduct[], q: ShopQuery): PricedProduc
     );
   });
   const by: Record<SortKey, (a: PricedProduct, b: PricedProduct) => number> = {
-    popular: (a, b) => b.reviews - a.reviews,
+    popular: (a, b) => (b.sold - a.sold) || (b.reviews - a.reviews) || (b.added - a.added),
     newest: (a, b) => b.added - a.added,
     "price-asc": (a, b) => priceAt(a, q.size) - priceAt(b, q.size),
     "price-desc": (a, b) => priceAt(b, q.size) - priceAt(a, q.size),

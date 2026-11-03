@@ -19,8 +19,9 @@ export type Product = {
   projection: string;
   concentration: string;
   origin: string;
-  rating: number;
-  reviews: number;
+  rating: number; // average of the visible reviews, 0 when there are none
+  reviews: number; // how many visible reviews
+  sold: number; // units sold (confirmed orders); drives the Popularity sort
   variants: Variant[];
   active: boolean;
   section: string;

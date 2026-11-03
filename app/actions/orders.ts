@@ -2,8 +2,9 @@
 
 import { currentUser } from "@/lib/server/session";
 import { headers } from "next/headers";
-import { authorizeOrder, cancelOrder, findOrders, parseInput, parseOrderNo, placeOrder, requestReturn, trackOrder, type PlaceOrderResult, type Proof, type TrackResult } from "@/lib/server/orders";
+import { authorizeOrder, cancelOrder, findOrders, parseInput, parseOrderNo, placeOrder, requestReturn, submitReview, trackOrder, type PlaceOrderResult, type Proof, type TrackResult } from "@/lib/server/orders";
 import { expireUnpaid, sslEnabled, startSslcommerz } from "@/lib/server/payments";
+import { updateTag } from "next/cache";
 import type { Order } from "@/lib/orders";
 
 export async function placeOrderAction(raw: unknown): Promise<PlaceOrderResult> {
@@ -96,6 +97,20 @@ export async function trackOrderAction(orderId: unknown, phone: unknown): Promis
     return await trackOrder(orderId, typeof phone === "string" ? phone.slice(0, 30) : "", user?.id, await callerId());
   } catch (e) {
     console.error("trackOrder failed", e);
+    return { ok: false, message: "Something went wrong. Please try again." };
+  }
+}
+
+/** A star rating and short comment for one delivered item. */
+export async function submitReviewAction(orderId: unknown, proof: unknown, productSlug: unknown, rating: unknown, comment: unknown): Promise<TrackResult> {
+  if (typeof orderId !== "string" || orderId.length > 20 || typeof productSlug !== "string" || typeof rating !== "number") return { ok: false, message: "That review could not be read." };
+  try {
+    const user = await currentUser();
+    const r = await submitReview(orderId, proofOf(proof), user?.id, await callerId(), productSlug.slice(0, 120), rating, typeof comment === "string" ? comment : "");
+    if (r.ok) updateTag("catalogue");
+    return r;
+  } catch (e) {
+    console.error("submitReview failed", e);
     return { ok: false, message: "Something went wrong. Please try again." };
   }
 }

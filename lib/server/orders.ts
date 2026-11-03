@@ -195,6 +195,7 @@ const withDetail = {
   items: true,
   history: { select: { status: true, createdAt: true }, orderBy: { createdAt: "asc" } },
   returnRequests: { where: { status: "open" }, select: { id: true } },
+  reviews: { select: { productId: true } },
 } satisfies Prisma.OrderInclude;
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof withDetail }>;
 
@@ -207,6 +208,19 @@ const DAY = 86_400_000;
 /** Delivered, inside the return window, and no request already open. */
 const returnable = (o: OrderRow, policy: OrderPolicy) =>
   o.status === "delivered" && policy.returnDays > 0 && !!o.deliveredAt && Date.now() - o.deliveredAt.getTime() <= policy.returnDays * DAY && o.returnRequests.length === 0;
+
+/** Delivered items still waiting for a review: one per product, skipping any the customer already rated. */
+function unreviewed(o: OrderRow) {
+  const done = new Set(o.reviews.map((r) => r.productId));
+  const seen = new Set<string>();
+  const out: Order["toReview"] = [];
+  for (const i of o.items) {
+    if (!i.productId || done.has(i.productId) || seen.has(i.productId)) continue;
+    seen.add(i.productId);
+    out.push({ slug: i.slug, title: i.title, image: i.image });
+  }
+  return out;
+}
 
 function toOrder(o: OrderRow, policy: OrderPolicy): Order {
   const intl = o.shipKind === "intl";
@@ -235,6 +249,7 @@ function toOrder(o: OrderRow, policy: OrderPolicy): Order {
     canCancel: cancellable(o.status, policy),
     canReturn: returnable(o, policy),
     returnRequested: o.returnRequests.length > 0,
+    toReview: o.status === "delivered" ? unreviewed(o) : [],
     canPayOnline: o.paymentMethod === "cod" && o.paymentStatus === "cod_pending" && ["pending", "confirmed", "packed", "shipped"].includes(o.status) && sslConfig() !== null,
   };
 }
@@ -396,5 +411,39 @@ export async function requestReturn(no: string, proof: Proof, customerId: string
     db.returnRequest.create({ data: { orderId: a.row.id, reason } }),
     db.orderStatusHistory.create({ data: { orderId: a.row.id, status: a.row.status, note: `Customer asked to return this order: ${reason}` } }),
   ]);
+  return { ok: true, order: await reload(a.row.id) };
+}
+
+/** "Tahsin Rahman Shefat(Kabbo)" becomes "Tahsin S." so a review never shows a full name. */
+const reviewer = (name: string) => {
+  const parts = name.replace(/[()[\],"/]/g, " ").trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : (parts[0] ?? "Customer");
+};
+
+/** Recompute a product's stored rating from its visible reviews. Call inside the transaction that changed them. */
+export async function recomputeRating(tx: Tx, productId: string) {
+  const agg = await tx.review.aggregate({ where: { productId, status: "visible" }, _avg: { rating: true }, _count: true });
+  await tx.product.update({ where: { id: productId }, data: { ratingAvg: agg._avg.rating ? Math.round(agg._avg.rating * 10) / 10 : 0, reviewCount: agg._count } });
+}
+
+/** A verified-buyer review: only for a product on an order that was delivered, once per order and product. */
+export async function submitReview(no: string, proof: Proof, customerId: string | undefined, caller: string, productSlug: string, rating: number, comment: string): Promise<TrackResult> {
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { ok: false, message: "Choose a rating from 1 to 5 stars." };
+  const text = comment.trim().replace(/\s+/g, " ").slice(0, 600);
+  const a = await authorizeOrder(no, proof, customerId, caller);
+  if (!a.ok) return a;
+  if (a.row.status !== "delivered") return { ok: false, message: "You can review items once your order is delivered." };
+  const item = a.row.items.find((i) => i.slug === productSlug && i.productId);
+  if (!item?.productId) return { ok: false, message: "That item isn't on this order." };
+  const productId = item.productId;
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.review.create({ data: { productId, orderId: a.row.id, author: reviewer(a.row.contactName), rating, comment: text } });
+      await recomputeRating(tx, productId);
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, message: "You've already reviewed this item. Thank you!" };
+    throw e;
+  }
   return { ok: true, order: await reload(a.row.id) };
 }

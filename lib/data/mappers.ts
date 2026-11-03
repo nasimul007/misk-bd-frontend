@@ -62,6 +62,7 @@ export const toProduct = (p: ProductRow): Product => {
     origin: p.origin ?? "",
     rating: Number(p.ratingAvg),
     reviews: p.reviewCount,
+    sold: p.soldCount,
     variants: p.variants.map((v) => ({ size: v.size, price: v.priceBdt, stock: v.stock })),
     active: p.active,
     section: p.section?.slug ?? "",

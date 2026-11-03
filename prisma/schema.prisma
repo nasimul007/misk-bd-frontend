@@ -134,6 +134,7 @@ model Product {
   adjustments   InventoryAdjustment[]
   discounts     Discount[]
   orderItems    OrderItem[]
+  reviews       Review[]
   archivedAt    DateTime?             @db.Timestamptz
   createdAt     DateTime              @default(now()) @db.Timestamptz
   updatedAt     DateTime              @updatedAt @db.Timestamptz
@@ -326,6 +327,7 @@ model Order {
   history        OrderStatusHistory[]
   payments       Payment[]
   returnRequests ReturnRequest[]
+  reviews        Review[]
   confirmedAt    DateTime?            @db.Timestamptz
   shippedAt      DateTime?            @db.Timestamptz
   deliveredAt    DateTime?            @db.Timestamptz
@@ -336,6 +338,25 @@ model Order {
   @@index([customerId, createdAt])
   @@index([status, createdAt])
   @@map("orders")
+}
+
+// A verified-buyer review: it can only be written for a product on an order that was delivered. The product's
+// ratingAvg / reviewCount are recomputed from the visible reviews whenever one is added, hidden or removed.
+model Review {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId   String?  @db.Uuid // the delivered order that makes this a verified purchase
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  author    String   @db.VarChar(60) // "Tahsin R."
+  rating    Int      @db.SmallInt
+  comment   String   @default("") @db.VarChar(600)
+  status    String   @default("visible") @db.VarChar(10) // visible | hidden
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@unique([orderId, productId])
+  @@index([productId, status, createdAt])
+  @@map("reviews")
 }
 
 // A customer asking to send a delivered order back. Staff see it on the order and settle it with the

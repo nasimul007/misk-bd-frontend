@@ -11,7 +11,7 @@ const variantsFor = (base6: number, stock: number): Variant[] => [
   { size: "12ml", price: r50(base6 * 1.85), stock },
 ];
 
-type Base = Omit<Product, "variants" | "price" | "maxPrice" | "active" | "section" | "sub" | "added" | "gallery" | "unit"> & { base6: number };
+type Base = Omit<Product, "variants" | "price" | "maxPrice" | "active" | "section" | "sub" | "added" | "gallery" | "unit" | "sold"> & { base6: number };
 
 const base: Base[] = [
   { id: "luxury-mens-cologne", title: "Luxury Men's Cologne", arabic: "عطر الرجال", image: img("product-1.jpg"), hover: img("prod-7.jpeg"), base6: 3500, category: "Men's Perfume", family: "Oud & Amber", tags: ["best seller", "premium", "cologne"], bestseller: true, stock: 30, description: "Premium luxury fragrance for the elite — an opulent oud heart wrapped in amber and warm spice.", lasting: 12, projection: "Strong", concentration: "Extrait de Parfum", origin: "Assam & Cambodia oud", rating: 4.8, reviews: 42 },
@@ -30,6 +30,7 @@ export const products: Product[] = base.map(({ base6, ...p }, i) => {
   return {
     ...p,
     unit: "ml",
+    sold: 0,
     variants,
     price: Math.min(...prices),
     maxPrice: Math.max(...prices),

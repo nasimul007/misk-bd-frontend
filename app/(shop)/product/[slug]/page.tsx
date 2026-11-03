@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, ChevronRight, ShieldCheck, Star } from "lucide-react";
-import { getProduct, getProductSlugs, getRelated, getSiteContent } from "@/lib/data";
+import { Check, ChevronRight, ShieldCheck } from "lucide-react";
+import { getProduct, getProductSlugs, getRelated, getReviews, getSiteContent } from "@/lib/data";
 import { Badge } from "@/components/ui/Badge";
 import { unitOf } from "@/lib/units";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ProductBuy } from "@/components/product/ProductBuy";
+import { Reviews, Stars } from "@/components/product/Reviews";
 import { ProductGallery } from "@/components/product/ProductGallery";
 
 export async function generateStaticParams() {
@@ -23,7 +24,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
   const product = await getProduct(slug);
   if (!product) notFound();
 
-  const [content, related] = await Promise.all([getSiteContent(), getRelated(slug)]);
+  const [content, related, reviews] = await Promise.all([getSiteContent(), getRelated(slug), getReviews(slug)]);
   const sec = content.sections.find((s) => s.id === product.section);
   const sub = sec?.children.find((c) => c.id === product.sub);
 
@@ -63,10 +64,14 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
               <h1 className="font-display" style={{ fontSize: 36, fontWeight: 500, lineHeight: 1.1, margin: 0, textWrap: "balance" }}>{product.title}</h1>
               <span dir="rtl" lang="ar" className="font-display" style={{ fontSize: 22, color: "var(--lux-gold)" }}>{product.arabic}</span>
             </div>
-            <div className="flex items-center gap-2" style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>
-              <span className="inline-flex gap-0.5" style={{ color: "var(--lux-gold)" }} aria-hidden>{Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="currentColor" />)}</span>
-              {product.rating} &middot; {product.reviews} reviews
-            </div>
+            {product.reviews > 0 ? (
+              <a href="#reviews" className="flex items-center gap-2" style={{ fontSize: 14, color: "var(--lux-ink-muted)", textDecoration: "none" }} aria-label={`Rated ${product.rating} out of 5 from ${product.reviews} review${product.reviews === 1 ? "" : "s"}. Read the reviews.`}>
+                <Stars value={product.rating} />
+                {product.rating.toFixed(1)} &middot; {product.reviews} review{product.reviews === 1 ? "" : "s"}
+              </a>
+            ) : (
+              <span style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}>No reviews yet</span>
+            )}
           </div>
 
           <ProductBuy product={product} intro={<p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--lux-ink-muted)", margin: 0 }}>{product.description}</p>} />
@@ -98,6 +103,8 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
           </ul>
         </div>
       </div>
+
+      <div className="alignment" style={{ padding: "0 24px" }}><Reviews reviews={reviews} average={product.rating} count={product.reviews} /></div>
 
       {related.length > 0 && (
         <section style={{ marginTop: 72 }}>

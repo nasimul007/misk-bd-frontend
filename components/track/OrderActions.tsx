@@ -1,11 +1,51 @@
 "use client";
 
 import { useState } from "react";
-import { cancelOrderAction, requestReturnAction, retryPaymentAction } from "@/app/actions/orders";
+import { Star } from "lucide-react";
+import { cancelOrderAction, requestReturnAction, retryPaymentAction, submitReviewAction } from "@/app/actions/orders";
 import type { Order } from "@/lib/orders";
 import type { Proof } from "@/lib/server/orders";
 
 const note = { margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-ink-muted)", lineHeight: 1.6 } as const;
+
+/** Star rating plus a short comment for one delivered item. */
+function ReviewItem({ orderId, item, proof, onUpdate }: { orderId: string; item: Order["toReview"][number]; proof: () => Proof; onUpdate: (o: Order) => void }) {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const send = async () => {
+    if (busy) return;
+    if (!rating) return setError("Tap the stars to rate it.");
+    setBusy(true);
+    setError("");
+    try {
+      const r = await submitReviewAction(orderId, proof(), item.slug, rating, comment);
+      if (r.ok) onUpdate(r.order); else setError(r.message);
+    } catch {
+      setError("We couldn't reach the server. Please try again.");
+    }
+    setBusy(false);
+  };
+  return (
+    <div style={{ padding: "14px 0", borderTop: "1px solid var(--lux-line)" }}>
+      <div style={{ fontSize: 14.5, fontWeight: 500, marginBottom: 8 }}>{item.title}</div>
+      <div role="radiogroup" aria-label={`Rating for ${item.title}`} className="flex gap-1" onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={`${n} star${n > 1 ? "s" : ""}`} onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} className="lux-focus" style={{ border: 0, background: "none", padding: 2, cursor: "pointer", color: "var(--lux-gold)" }}>
+            <Star size={26} fill={(hover || rating) >= n ? "currentColor" : "none"} />
+          </button>
+        ))}
+      </div>
+      <textarea aria-label={`Your review of ${item.title} (optional)`} rows={2} maxLength={600} className="lux-input" style={{ marginTop: 8 }} placeholder="Tell others what you thought (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <div className="flex flex-wrap items-center gap-3" style={{ marginTop: 8 }}>
+        <button type="button" onClick={send} disabled={busy} className="lux-btn-fill lux-focus" style={{ padding: "0.5rem 1.2rem", fontSize: "0.85rem" }}>{busy ? "Sending…" : "Post review"}</button>
+        {error && <span role="alert" style={{ fontSize: 13, color: "var(--lux-warning)" }}>{error}</span>}
+      </div>
+    </div>
+  );
+}
 
 /**
  * What a customer can do with an order from its page: pay online (Cash on Delivery orders), cancel it while
@@ -38,7 +78,7 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
   });
 
   const paid = order.payStatus === "paid";
-  const any = order.canPayOnline || order.canCancel || order.canReturn || order.returnRequested || (order.status === "cancelled" && paid);
+  const any = order.toReview.length > 0 || order.canPayOnline || order.canCancel || order.canReturn || order.returnRequested || (order.status === "cancelled" && paid);
   if (!any) return null;
 
   return (
@@ -72,6 +112,12 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
         </div>
       )}
 
+      {order.toReview.length > 0 && (
+        <div style={{ marginTop: order.canReturn ? 16 : 0 }}>
+          <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--lux-ink-muted)", marginBottom: 2 }}>How was your order? Rate your items</div>
+          {order.toReview.map((i) => <ReviewItem key={i.slug} orderId={order.id} item={i} proof={proof} onUpdate={onUpdate} />)}
+        </div>
+      )}
       {order.returnRequested && <p style={{ ...note, marginTop: 0 }}>Return requested. We&apos;ll contact you shortly to arrange it.</p>}
       {order.status === "cancelled" && paid && <p style={{ ...note, marginTop: 0 }}>This order was cancelled. Your online payment will be refunded.</p>}
       {error && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-warning)" }}>{error}</p>}

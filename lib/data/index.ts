@@ -97,3 +97,15 @@ export async function getRelated(slug: string, limit = 4): Promise<PricedProduct
   const rest = others.filter((p) => !same.includes(p));
   return [...same, ...rest].slice(0, limit);
 }
+
+export type ReviewView = { id: string; author: string; rating: number; comment: string; at: string };
+
+/** The visible reviews of a product, newest first. */
+export async function getReviews(slug: string): Promise<ReviewView[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("catalogue");
+
+  const rows = await db.review.findMany({ where: { status: "visible", product: { slug } }, orderBy: { createdAt: "desc" }, take: 50 });
+  return rows.map((r) => ({ id: r.id, author: r.author, rating: r.rating, comment: r.comment, at: r.createdAt.toISOString() }));
+}
