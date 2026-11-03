@@ -15,11 +15,21 @@ export type PaymentMethod = { id: PaymentId; label: string; note: string; tag?: 
 
 export const payments: PaymentMethod[] = [
   { id: "bkash", label: "bKash", note: "Pay with your bKash wallet", tag: "Most popular" },
-  { id: "sslcommerz", label: "Card / Mobile Banking", note: "Visa, Mastercard, Nagad, Rocket via SSLCommerz" },
+  { id: "sslcommerz", label: "Card / Mobile Banking", note: "Visa, Mastercard, bKash, Nagad, Rocket via SSLCommerz" },
   { id: "cod", label: "Cash on Delivery", note: "Pay when your parcel arrives" },
   { id: "stripe", label: "International Card", note: "Visa / Mastercard · 3-D Secure", intl: true },
   { id: "paypal", label: "PayPal", note: "For overseas buyers", intl: true },
 ];
 
-/** International buyers pay by international methods only; Bangladeshi buyers by the local ones. */
-export const paymentsFor = (intl: boolean) => payments.filter((p) => !!p.intl === intl);
+/**
+ * What a shopper can choose, given which methods are live. Bangladeshi buyers get the local methods;
+ * international buyers get Stripe/PayPal when those are live, and otherwise card payment through SSLCommerz
+ * (which accepts international cards).
+ */
+export function paymentsFor(intl: boolean, live: readonly PaymentId[] = payments.map((p) => p.id)): PaymentMethod[] {
+  const ok = payments.filter((p) => live.includes(p.id));
+  if (!intl) return ok.filter((p) => !p.intl);
+  const world = ok.filter((p) => p.intl);
+  if (world.length) return world;
+  return ok.filter((p) => p.id === "sslcommerz").map((p) => ({ ...p, label: "Credit / Debit Card", note: "Visa, Mastercard and other international cards, via SSLCommerz", tag: undefined }));
+}

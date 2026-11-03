@@ -3,15 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock, Truck } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { computeTotals, dialFor, emptyForm, estimateFor, validate, type CheckoutForm as Form } from "@/lib/checkout";
-import { paymentsFor } from "@/lib/config";
+import { paymentsFor, type PaymentId } from "@/lib/config";
 import { countries, dialOptions, geo } from "@/lib/data/geo";
 import { useCurrency, useMoney } from "@/lib/currency";
 import { money as bdt } from "@/lib/format";
 import { placeOrderAction } from "@/app/actions/orders";
+import { checkoutPrefillAction } from "@/app/actions/auth";
+import { useSession } from "@/lib/auth";
 import { orderTokens } from "@/lib/orders";
 import { Field, ariaFor } from "./Field";
 import { UnpaidOrders } from "./UnpaidOrders";
@@ -19,7 +21,7 @@ import { UnpaidOrders } from "./UnpaidOrders";
 const card = { borderRadius: 18, padding: 24 } as const;
 const h = { fontSize: 18, fontWeight: 500, margin: "0 0 18px" } as const;
 
-export function CheckoutForm() {
+export function CheckoutForm({ live }: { live: PaymentId[] }) {
   const money = useMoney();
   const currency = useCurrency();
   const router = useRouter();
@@ -27,22 +29,44 @@ export function CheckoutForm() {
   const hydrated = useCart((s) => s.hydrated);
   const clear = useCart((s) => s.clear);
   const sync = useCart((s) => s.sync);
-  const [f, setF] = useState<Form>(emptyForm);
+  const [f, setF] = useState<Form>(() => ({ ...emptyForm, pay: paymentsFor(false, live)[0]?.id ?? "" }));
+  const session = useSession();
+  const [prefilled, setPrefilled] = useState(false);
+  const touchedRef = useRef(false); // once the shopper types, we never overwrite their input
   const [touched, setTouched] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
-  const errors = validate(f);
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => { touchedRef.current = true; setF((p) => ({ ...p, [k]: v })); };
+
+  // Signed in? Start the form from their account and last delivery address, unless they have already typed something.
+  useEffect(() => {
+    if (!session || prefilled || touchedRef.current) return;
+    let active = true;
+    checkoutPrefillAction().then((d) => {
+      if (!active || !d || touchedRef.current) return;
+      // Only fill what is still empty: anything the shopper has already chosen or typed stays.
+      const placeOk = !!d.division && !!geo[d.division]?.[d.district]?.includes(d.thana);
+      setF((p) => ({
+        ...p,
+        name: p.name || d.name, phone: p.phone || d.phone, email: p.email || d.email, street: p.street || d.street,
+        ...(placeOk && !p.division && !p.intl ? { division: d.division, district: d.district, thana: d.thana } : {}),
+      }));
+      setPrefilled(true);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [session, prefilled]);
+  const errors = validate(f, live);
   const err = (k: keyof Form) => (touched ? errors[k] : undefined);
   const ok = Object.keys(errors).length === 0;
 
   const t = computeTotals(items, { intl: f.intl, division: f.division });
-  const methods = paymentsFor(f.intl);
+  const methods = paymentsFor(f.intl, live);
+  const canShipAbroad = paymentsFor(true, live).length > 0; // international buyers need a method that can take their payment
   const districts = f.division ? Object.keys(geo[f.division] ?? {}) : [];
   const thanas = f.division && f.district ? (geo[f.division]?.[f.district] ?? []) : [];
 
-  const toggleIntl = (intl: boolean) => setF({ ...emptyForm, name: f.name, email: f.email, street: f.street, note: f.note, contactless: f.contactless, intl, pay: intl ? "stripe" : "bkash" });
+  const toggleIntl = (intl: boolean) => setF({ ...emptyForm, name: f.name, email: f.email, street: f.street, note: f.note, contactless: f.contactless, intl, pay: paymentsFor(intl, live)[0]?.id ?? "" });
   const pickCountry = (country: string) => setF((p) => ({ ...p, country, dial: dialFor(country) }));
 
   const place = async (e: React.FormEvent) => {
@@ -116,9 +140,11 @@ export function CheckoutForm() {
         <section className="lux-surface" style={card}>
           <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: 18 }}>
             <h2 className="font-display" style={{ ...h, margin: 0 }}>2 &middot; Delivery address</h2>
-            <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 13, color: "var(--lux-ink-muted)" }}>
-              <input type="checkbox" checked={f.intl} onChange={(e) => toggleIntl(e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> International buyer
-            </label>
+            {(canShipAbroad || f.intl) && (
+              <label className="flex cursor-pointer items-center gap-2" style={{ fontSize: 13, color: "var(--lux-ink-muted)" }}>
+                <input type="checkbox" checked={f.intl} onChange={(e) => toggleIntl(e.target.checked)} style={{ accentColor: "var(--lux-gold)" }} /> International buyer
+              </label>
+            )}
           </div>
           {!f.intl ? (
             <div className="grid gap-3.5 sm:grid-cols-3">

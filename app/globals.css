@@ -41,3 +41,8 @@ select.lux-input { color-scheme: dark; }
 select.lux-input option { background: var(--lux-bg-3); color: var(--lux-ink); }
 select.lux-input:disabled { opacity: 0.5; cursor: not-allowed; }
 .lux-input[aria-invalid="true"] { border-color: var(--lux-warning); }
+
+/* Loading placeholders pulse gently, and stay still for people who ask for less motion. */
+@keyframes lux-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.lux-skeleton { animation: lux-pulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .lux-skeleton { animation: none; } }

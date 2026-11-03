@@ -50,7 +50,7 @@ export const bdLocal = (phone: string) => phone.replace(/\D/g, "").replace(/^(00
 
 export type FormErrors = Partial<Record<keyof CheckoutForm, string>>;
 
-export function validate(f: CheckoutForm): FormErrors {
+export function validate(f: CheckoutForm, live?: readonly PaymentId[]): FormErrors {
   const e: FormErrors = {};
   const name = f.name.trim();
   const digits = f.phone.replace(/\D/g, "");
@@ -83,7 +83,7 @@ export function validate(f: CheckoutForm): FormErrors {
   if (street.length < 5) e.street = f.intl ? "Enter your street address (house / apartment, street)." : "Enter your house, road and area (at least 5 characters).";
   else if (street.length > 255) e.street = "Address is too long (255 characters max).";
 
-  if (!f.pay || !paymentsFor(f.intl).some((p) => p.id === f.pay)) e.pay = "Choose a payment method.";
+  if (!f.pay || !paymentsFor(f.intl, live).some((p) => p.id === f.pay)) e.pay = "Choose a payment method.";
   return e;
 }
 

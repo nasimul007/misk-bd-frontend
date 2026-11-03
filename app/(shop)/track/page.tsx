@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { TrackOrder } from "@/components/track/TrackOrder";
 
-export const metadata: Metadata = { title: "Track my order — MISK BD", description: "See where your Misk BD order is, with your order number and phone number." };
+export const metadata: Metadata = { title: "Track my order — MISK BD", robots: { index: false, follow: false }, description: "See where your Misk BD order is, with your order number and phone number." };
 
 export default function TrackPage() {
   return (

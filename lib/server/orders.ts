@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { bdLocal, computeTotals, estimateFor, validate, type CheckoutForm, type FormErrors } from "@/lib/checkout";
 import { discountArgs, productArgs, toDiscount, toProduct } from "@/lib/data/mappers";
 import { priceInfo } from "@/lib/pricing";
+import { liveMethods } from "@/lib/server/live-methods";
 import { getPolicy } from "@/lib/server/policy";
 import { sslConfig } from "@/lib/server/sslcommerz";
 import type { FreshLine, Order } from "@/lib/orders";
@@ -114,7 +115,7 @@ async function priceLines(tx: Tx, lines: OrderLineInput[]) {
 }
 
 export async function placeOrder(input: PlaceOrderInput, customerId?: string): Promise<PlaceOrderResult> {
-  const errors = validate(input.form);
+  const errors = validate(input.form, liveMethods());
   if (Object.keys(errors).length) return { ok: false, code: "invalid", message: "Please check your details.", errors };
   const f = input.form;
   const token = randomBytes(32).toString("base64url");

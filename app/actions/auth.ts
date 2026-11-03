@@ -1,5 +1,6 @@
 "use server";
 
+import { bdLocal } from "@/lib/checkout";
 import { db } from "@/lib/db";
 import {
   normalizeEmail, requestOtp, requestPasswordReset, resetPassword, signInWithEmail, signUpWithEmail, validEmail, verifyOtp,
@@ -129,4 +130,34 @@ export async function myOrdersAction(refs: unknown): Promise<Order[]> {
   const user = await currentUser();
   if (!user) return [];
   try { return await ordersFor(user.id, refsOf(refs)); } catch (e) { console.error("myOrders failed", e); return []; }
+}
+
+export type Prefill = { name: string; phone: string; email: string; division: string; district: string; thana: string; street: string };
+
+/**
+ * Details to pre-fill checkout for a signed-in customer: their account name, phone and email, and the
+ * delivery address from their last Bangladesh order (it is complete: division, district, upazila, street),
+ * falling back to their default saved address text.
+ */
+export async function checkoutPrefillAction(): Promise<Prefill | null> {
+  const user = await currentUser();
+  if (!user) return null;
+  try {
+    const [last, saved] = await Promise.all([
+      db.order.findFirst({ where: { customerId: user.id, shipKind: "bd" }, orderBy: { createdAt: "desc" }, select: { shipDivision: true, shipDistrict: true, shipUpazila: true, shipStreet: true } }),
+      db.customerAddress.findFirst({ where: { customerId: user.id }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], select: { street: true } }),
+    ]);
+    return {
+      name: user.name,
+      phone: user.phone ? bdLocal(user.phone) : "",
+      email: user.email ?? "",
+      division: last?.shipDivision ?? "",
+      district: last?.shipDistrict ?? "",
+      thana: last?.shipUpazila ?? "",
+      street: last?.shipStreet ?? saved?.street ?? "",
+    };
+  } catch (e) {
+    console.error("checkoutPrefill failed", e);
+    return null;
+  }
 }

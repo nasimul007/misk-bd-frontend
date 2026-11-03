@@ -58,7 +58,7 @@ export function Footer({ content, sections }: { content: SiteContent["footer"]; 
         <div className="flex flex-wrap items-center justify-between gap-4" style={{ borderTop: "1px solid var(--lux-line)", paddingTop: 22 }}>
           <div className="flex flex-wrap gap-[18px]">{legal.map(([t, h]) => <Link key={t} href={h} style={{ ...link, fontSize: 13 }}>{t}</Link>)}</div>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2" style={{ color: "var(--lux-ink-muted)", fontSize: 12 }}><Lock size={13} /> Secure checkout &middot; bKash &middot; SSLCommerz &middot; COD</div>
+            <div className="flex items-center gap-2" style={{ color: "var(--lux-ink-muted)", fontSize: 12 }}><Lock size={13} /> Secure checkout &middot; Cards &amp; mobile banking &middot; COD</div>
             <Link href="/admin" className="flex items-center gap-1.5" style={{ ...link, fontSize: 12 }}><Settings size={13} /> Store Admin</Link>
           </div>
         </div>

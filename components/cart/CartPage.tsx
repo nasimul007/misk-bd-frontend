@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cartCount, cartSubtotal, useCart } from "@/lib/cart";
+import { FreeShippingBar } from "./FreeShippingBar";
 import { useMoney } from "@/lib/currency";
 import { CartLines } from "./CartLines";
 
@@ -28,6 +29,7 @@ export function CartPage() {
             <aside className="lux-surface flex flex-col gap-4 lg:sticky lg:top-24" style={{ borderRadius: 18, padding: 24 }} aria-label="Order summary">
               <h2 className="font-display" style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>Order summary</h2>
               <div className="flex justify-between" style={{ fontSize: 14, color: "var(--lux-ink-muted)" }}><span>Items ({count})</span><span>{money(cartSubtotal(items))}</span></div>
+              <FreeShippingBar subtotal={cartSubtotal(items)} />
               <p style={{ margin: 0, fontSize: 12.5, color: "var(--lux-ink-muted)", lineHeight: 1.6 }}>Shipping and VAT are calculated at checkout.</p>
               <div className="flex justify-between" style={{ borderTop: "1px solid var(--lux-line)", paddingTop: 16 }}>
                 <span>Subtotal</span>

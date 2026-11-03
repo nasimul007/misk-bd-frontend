@@ -5,6 +5,7 @@ import { Check, ChevronRight, ShieldCheck } from "lucide-react";
 import { getProduct, getProductSlugs, getRelated, getReviews, getSiteContent } from "@/lib/data";
 import { Badge } from "@/components/ui/Badge";
 import { unitOf } from "@/lib/units";
+import { SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ProductBuy } from "@/components/product/ProductBuy";
 import { Reviews, Stars } from "@/components/product/Reviews";
@@ -16,7 +17,15 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/product/[slug]">): Promise<Metadata> {
   const product = await getProduct((await params).slug);
-  return product ? { title: `${product.title} — MISK BD`, description: product.description } : {};
+  if (!product) return {};
+  const description = product.description.slice(0, 160) || `${product.title} from MISK BD.`;
+  return {
+    title: `${product.title} — MISK BD`,
+    description,
+    alternates: { canonical: `/product/${product.id}` },
+    openGraph: { type: "website", title: product.title, description, url: `/product/${product.id}`, images: [{ url: product.image, alt: product.title }] },
+    twitter: { card: "summary_large_image", title: product.title, description, images: [product.image] },
+  };
 }
 
 export default async function ProductPage({ params }: PageProps<"/product/[slug]">) {
@@ -27,6 +36,29 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
   const [content, related, reviews] = await Promise.all([getSiteContent(), getRelated(slug), getReviews(slug)]);
   const sec = content.sections.find((s) => s.id === product.section);
   const sub = sec?.children.find((c) => c.id === product.sub);
+
+  // Structured data, so search engines can show the price, availability and stars.
+  const absolute = (u: string) => (u.startsWith("http") ? u : `${SITE_URL}${u}`);
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    image: product.gallery.map(absolute),
+    sku: product.id,
+    brand: { "@type": "Brand", name: SITE_NAME },
+    category: product.category,
+    url: `${SITE_URL}/product/${product.id}`,
+    offers: {
+      "@type": product.variants.length > 1 ? "AggregateOffer" : "Offer",
+      priceCurrency: "BDT",
+      ...(product.variants.length > 1 ? { lowPrice: product.card.price, highPrice: product.card.maxPrice, offerCount: product.variants.length } : { price: product.card.price }),
+      availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      url: `${SITE_URL}/product/${product.id}`,
+    },
+    ...(product.reviews > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating, reviewCount: product.reviews } } : {}),
+    ...(reviews.length ? { review: reviews.slice(0, 10).map((r) => ({ "@type": "Review", author: { "@type": "Person", name: r.author }, datePublished: r.at.slice(0, 10), reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 }, reviewBody: r.comment })) } : {}),
+  };
 
   const specs = ([
     ["Collection", sec ? (sub ? `${sec.name} › ${sub.name}` : sec.name) : ""],
@@ -43,6 +75,7 @@ export default async function ProductPage({ params }: PageProps<"/product/[slug]
 
   return (
     <div className="alignment" style={{ padding: "12px 24px 60px", color: "var(--lux-ink)" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
       <nav aria-label="Breadcrumb" style={crumb}>
         <Link href="/">Home</Link><ChevronRight size={13} />
         <Link href="/shop">Shop</Link>

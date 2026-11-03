@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { cartSubtotal, useCart } from "@/lib/cart";
 import { useMoney } from "@/lib/currency";
 import { CartLines } from "./CartLines";
+import { FreeShippingBar } from "./FreeShippingBar";
 
 /** Slide-in cart. Closes on Esc, backdrop click, or when a link inside is followed. */
 export function CartDrawer() {
@@ -31,6 +32,7 @@ export function CartDrawer() {
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: 24 }}><CartLines onNavigate={close} /></div>
         <div style={{ borderTop: "1px solid var(--lux-line)", padding: 24 }}>
+          {items.length > 0 && <div style={{ marginBottom: 16 }}><FreeShippingBar subtotal={cartSubtotal(items)} /></div>}
           <div className="flex justify-between" style={{ marginBottom: 16 }}>
             <span style={{ color: "var(--lux-ink-muted)" }}>Subtotal</span>
             <span className="font-display" style={{ fontSize: 20, color: "var(--lux-gold)" }}>{money(cartSubtotal(items))}</span>

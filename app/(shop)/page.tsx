@@ -8,6 +8,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { Testimonial } from "@/components/ui/Testimonial";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, jsonLd } from "@/lib/site";
 
 
 const scrim = "linear-gradient(180deg, transparent 40%, var(--lux-scrim) 100%)";
@@ -16,8 +17,17 @@ export default async function HomePage() {
   const [content, bestSellers] = await Promise.all([getSiteContent(), getBestSellers(4)]);
   const { hero, trust, manifesto, sectionsMeta, sections, categories, testimonials, cta } = content;
 
+  const schema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: `${SITE_URL}/icon.png`, description: SITE_DESCRIPTION, email: content.footer.email, telephone: content.footer.phone, address: content.footer.address, sameAs: [content.footer.facebook, content.footer.instagram].filter(Boolean) },
+      { "@type": "WebSite", name: SITE_NAME, url: SITE_URL, potentialAction: { "@type": "SearchAction", target: `${SITE_URL}/shop?q={search_term_string}`, "query-input": "required name=search_term_string" } },
+    ],
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
       {/* HERO */}
       <section style={{ position: "relative", minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", overflow: "hidden" }}>
         <Image src={hero.image} alt="" fill priority sizes="100vw" style={{ objectFit: "cover" }} />

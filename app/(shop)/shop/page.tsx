@@ -5,13 +5,14 @@ import { getProducts, getSiteContent } from "@/lib/data";
 import { facetsOf, filterProducts, parseQuery, priceBounds } from "@/lib/catalogue";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { ShopControls } from "@/components/shop/ShopControls";
+import { ProductGridSkeleton } from "@/components/ui/Skeleton";
 
-export const metadata = { title: "Shop — MISK BD" };
+export const metadata = { title: "Shop — MISK BD", description: "Browse authentic attar, oud and perfumes from MISK BD. Filter by collection, size and price. Delivered across Bangladesh.", alternates: { canonical: "/shop" } };
 
 export default function ShopPage({ searchParams }: PageProps<"/shop">) {
   return (
     <div className="alignment" style={{ padding: "16px 24px 40px" }}>
-      <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-busy="true" />}>
+      <Suspense fallback={<ProductGridSkeleton />}>
         <Shop searchParams={searchParams} />
       </Suspense>
     </div>
