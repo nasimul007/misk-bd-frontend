@@ -1,8 +1,9 @@
 "use server";
 
 import { currentUser } from "@/lib/server/session";
-import { headers } from "next/headers";
-import { authorizeOrder, cancelOrder, findOrders, parseInput, parseOrderNo, placeOrder, requestReturn, submitReview, trackOrder, type PlaceOrderResult, type Proof, type TrackResult } from "@/lib/server/orders";
+import { callerIp } from "@/lib/server/limits";
+import { orderGate } from "@/lib/server/order-gate";
+import { authorizeOrder, cancelOrder, findOrders, parseInput, parseOrderNo, phoneFor, placeOrder, requestReturn, submitReview, trackOrder, type PlaceOrderResult, type Proof, type TrackResult } from "@/lib/server/orders";
 import { expireUnpaid, sslEnabled, startSslcommerz } from "@/lib/server/payments";
 import { updateTag } from "next/cache";
 import { getProduct } from "@/lib/data";
@@ -16,6 +17,9 @@ export async function placeOrderAction(raw: unknown): Promise<PlaceOrderResult> 
     if (input.form.pay === "sslcommerz" && !sslEnabled()) {
       return { ok: false, code: "invalid", message: "Card and mobile banking payment isn't available right now. Please choose another method." };
     }
+    const refused = await orderGate(phoneFor(input.form), input.form.pay, await callerIp());
+    if (refused) return { ok: false, code: "invalid", message: refused };
+
     const user = await currentUser();
     // Free the stock held by abandoned online orders before this buyer is told something is sold out.
     await expireUnpaid().catch((e) => console.error("expireUnpaid failed", e));
@@ -44,7 +48,7 @@ export async function lookupOrdersAction(refs: unknown): Promise<Order[]> {
   }
 }
 
-const callerId = async () => ((await headers()).get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 45) || "unknown";
+const callerId = () => callerIp();
 
 /** Whatever the page can prove about the order: the guest token (a bare string) and/or the phone it was placed with. */
 function proofOf(v: unknown): Proof {

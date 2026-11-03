@@ -92,3 +92,12 @@ Set these in `.env` (see `.env.example`). With the store id empty, the method is
 How it stays safe: the browser return and the IPN are only hints. A payment counts once SSLCommerz's validation service confirms it, the amount and currency match the order, and the order row is locked while it is applied, so repeats are harmless. Unpaid orders are cancelled and their stock released after the hold; run `GET /api/cron/expire-orders` with `Authorization: Bearer $CRON_SECRET` every 5 minutes (Vercel Cron does this). Checkout also sweeps expired orders before each new order.
 
 Going live: set live credentials and `SSLCOMMERZ_MODE="live"`, set `APP_URL` to the production domain, register the IPN address `https://<domain>/api/pay/sslcommerz/ipn` in the SSLCommerz merchant panel, then place one small real order. Refunds are made in the SSLCommerz panel for now.
+
+## Abuse protection and security settings
+
+- **Limits** (all generous for real shoppers): 6 orders per phone per hour (15 a day) and 20 per network address per hour; at most 2 unpaid online orders per phone at once (they hold stock); 10 login-code requests per address per hour and `SMS_DAILY_CAP` texts a day; 10 sign-ups per address per hour. Address limits need the visitor's real address: Vercel and Cloudflare provide it, otherwise set `CLIENT_IP_HEADER`. Without a usable address those limits are skipped (the per-phone and per-order limits still apply). Limits that need a CAPTCHA are not built yet.
+- **Headers:** every response carries `X-Frame-Options: DENY`, `nosniff`, a referrer policy, a permissions policy and a Content-Security-Policy with `frame-ancestors 'none'`; production adds HSTS (serve the site over HTTPS only). Staff pages are never cached. A full `script-src` policy is not set yet.
+- **Scheduled jobs** (both need `CRON_SECRET`, sent as `Authorization: Bearer …`; Vercel Cron does this):
+  - `GET /api/cron/expire-orders` every 5 minutes: cancels unpaid online orders and returns their stock.
+  - `GET /api/cron/cleanup` once a day: removes old rate-limit records, expired login codes and reset links, and ended sessions. Orders, reviews, the audit log and stock history are never touched.
+- **Payment callbacks** refuse bodies over 16 KB; a payment is only ever counted after SSLCommerz's own validation confirms it.

@@ -6,6 +6,7 @@ import {
   normalizeEmail, requestOtp, requestPasswordReset, resetPassword, signInWithEmail, signUpWithEmail, validEmail, verifyOtp,
   type AuthUser, type Result,
 } from "@/lib/server/auth";
+import { allowIp, HOUR, SLOW_DOWN } from "@/lib/server/limits";
 import { claimOrders, ordersFor } from "@/lib/server/orders";
 import { currentUser, startSession, stopSession } from "@/lib/server/session";
 import type { Order, OrderRef } from "@/lib/orders";
@@ -33,11 +34,15 @@ export async function meAction(): Promise<AuthUser | null> {
 }
 
 export async function requestOtpAction(phone: unknown): Promise<Result> {
-  try { return await requestOtp(text(phone, 30)); } catch (e) { return fail(e); }
+  try {
+    if (!(await allowIp("otp", 10, HOUR))) return { ok: false, error: SLOW_DOWN }; // one address can't ask for codes for many numbers
+    return await requestOtp(text(phone, 30));
+  } catch (e) { return fail(e); }
 }
 
 export async function verifyOtpAction(phone: unknown, code: unknown, refs: unknown): Promise<Result<{ user: AuthUser }>> {
   try {
+    if (!(await allowIp("otp-verify", 40, HOUR))) return { ok: false, error: SLOW_DOWN };
     const r = await verifyOtp(text(phone, 30), text(code, 10));
     return r.ok ? await signedIn(r.user, refsOf(refs)) : r;
   } catch (e) { return fail(e); }
@@ -45,6 +50,7 @@ export async function verifyOtpAction(phone: unknown, code: unknown, refs: unkno
 
 export async function signUpAction(name: unknown, email: unknown, password: unknown, refs: unknown): Promise<Result<{ user: AuthUser }>> {
   try {
+    if (!(await allowIp("signup", 10, HOUR))) return { ok: false, error: SLOW_DOWN }; // slows down mass sign-ups and email guessing
     const r = await signUpWithEmail(text(name, 80), text(email, 120), text(password, 200));
     return r.ok ? await signedIn(r.user, refsOf(refs)) : r;
   } catch (e) { return fail(e); }

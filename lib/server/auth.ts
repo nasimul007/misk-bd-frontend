@@ -1,4 +1,5 @@
 import "server-only";
+import { allow, DAY } from "@/lib/server/limits";
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { hash as argonHash, verify as argonVerify } from "@node-rs/argon2";
 import type { Customer } from "@/generated/prisma/client";
@@ -55,6 +56,9 @@ export const toUser = (c: Pick<Customer, "id" | "name" | "phone" | "email" | "pa
   hasPassword: !!c.passwordHash,
 });
 
+// One wording for every reason a sign-up can be refused for an email, so it can't be used to find out who has an account.
+const SIGNUP_FAILED = "We couldn't create an account with those details. If you already have one, sign in or reset your password.";
+
 // A real hash to verify against when the email is unknown, so timing doesn't reveal which emails exist.
 let dummyHash: Promise<string> | undefined;
 const getDummy = () => (dummyHash ??= argonHash(randomBytes(16).toString("hex")));
@@ -67,6 +71,10 @@ export async function requestOtp(rawPhone: string): Promise<Result> {
 
   const recent = await db.otpCode.count({ where: { phone, purpose: "login", createdAt: { gt: new Date(Date.now() - 10 * 60_000) } } });
   if (recent >= OTP_MAX_PER_WINDOW) return { ok: false, error: "Too many codes requested. Please wait a few minutes and try again." };
+
+  // A ceiling on texts per day, so a flood of real-looking numbers can never run up the SMS bill. It is counted
+  // only once the request is otherwise valid, so junk requests can't use it up for everyone else.
+  if (!(await allow("limit:otp:day", Number(process.env.SMS_DAILY_CAP) || 300, DAY))) return { ok: false, error: "We can't send login codes right now. Please try again later, or sign in with your email and password." };
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.otpCode.create({ data: { phone, purpose: "login", codeHash: hmac(`${phone}:${code}`), expiresAt: new Date(Date.now() + OTP_TTL_MS) } });
@@ -119,14 +127,14 @@ export async function signUpWithEmail(name: string, rawEmail: string, password: 
   if (problem) return { ok: false, error: problem };
   const cleanName = typeof name === "string" ? name.trim().slice(0, 80) : "";
 
-  if (await db.customer.findUnique({ where: { email } })) {
-    return { ok: false, error: "An account with this email already exists. Try signing in, or reset your password." };
-  }
+  // Hash first, whether or not the email is taken, so a quick refusal doesn't give the answer away.
+  const passwordHash = await argonHash(password);
+  if (await db.customer.findUnique({ where: { email } })) return { ok: false, error: SIGNUP_FAILED };
   try {
-    const customer = await db.customer.create({ data: { name: cleanName, email, passwordHash: await argonHash(password), lastLoginAt: new Date() } });
+    const customer = await db.customer.create({ data: { name: cleanName, email, passwordHash, lastLoginAt: new Date() } });
     return { ok: true, user: toUser(customer) };
   } catch (e) {
-    if ((e as { code?: string }).code === "P2002") return { ok: false, error: "An account with this email already exists. Try signing in, or reset your password." };
+    if ((e as { code?: string }).code === "P2002") return { ok: false, error: SIGNUP_FAILED };
     throw e;
   }
 }

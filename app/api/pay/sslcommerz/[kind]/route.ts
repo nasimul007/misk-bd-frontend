@@ -7,6 +7,26 @@ import { appUrl } from "@/lib/server/sslcommerz";
 // a payment counts only once SSLCommerz's own validation service confirms it (see settleSslcommerz).
 
 const KINDS = new Set(["success", "fail", "cancel", "ipn"]);
+// A real callback is a few hundred bytes. Anything bigger is not from the gateway, so it is refused before it is read.
+const MAX_BODY = 16 * 1024;
+
+/** The posted form, read with a hard size limit (a missing or lying Content-Length can't get around it). */
+async function readForm(request: Request): Promise<FormData | null> {
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY) return null;
+  const reader = request.body?.getReader();
+  if (!reader) return new FormData();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) { await reader.cancel(); return null; }
+    chunks.push(value);
+  }
+  return new Response(new Blob(chunks as BlobPart[]), { headers: { "content-type": request.headers.get("content-type") ?? "" } }).formData();
+}
+
 const field = (f: FormData, k: string) => {
   const v = f.get(k);
   return typeof v === "string" ? v.slice(0, 200) : "";
@@ -18,7 +38,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ kind: stri
   const back = (orderNo: string | null) => NextResponse.redirect(`${appUrl()}${orderNo ? `/order/${orderNo}` : "/"}`, 303);
 
   try {
-    const form = await request.formData();
+    const form = await readForm(request);
+    if (!form) return new NextResponse("Payload too large", { status: 413 });
     const tranId = field(form, "tran_id");
     if (kind === "fail" || kind === "cancel") return back(await failSslcommerz(tranId, kind === "fail" ? "failed" : "cancelled"));
 

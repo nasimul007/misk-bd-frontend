@@ -65,7 +65,7 @@ export function parseInput(raw: unknown): PlaceOrderInput | null {
   return { lines: [...merged.values()], form: clean, expectedTotal: typeof expectedTotal === "number" ? expectedTotal : NaN };
 }
 
-const phoneFor = (f: CheckoutForm) => (f.intl ? `${f.dial}${f.phone.replace(/\D/g, "")}` : `+88${bdLocal(f.phone)}`);
+export const phoneFor = (f: CheckoutForm) => (f.intl ? `${f.dial}${f.phone.replace(/\D/g, "")}` : `+88${bdLocal(f.phone)}`);
 
 type Tx = Prisma.TransactionClient;
 
