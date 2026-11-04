@@ -11,13 +11,11 @@ export function computeTotals(items: Line[], where: { intl: boolean; division: s
   const listTotal = items.reduce((n, i) => n + (i.original || i.price) * i.qty, 0);
   const ship = where.intl
     ? shipping.intl
-    : subtotal >= shipping.freeThreshold
-      ? 0
-      : where.division === "Dhaka"
-        ? shipping.insideDhaka
-        : where.division
-          ? shipping.outsideDhaka
-          : 0;
+    : where.division === "Dhaka"
+      ? shipping.insideDhaka
+      : where.division
+        ? shipping.outsideDhaka
+        : 0;
   return { listTotal, subtotal, savings: listTotal - subtotal, shipping: ship, vat: Math.round(subtotal * vatRate), total: subtotal + ship };
 }
 

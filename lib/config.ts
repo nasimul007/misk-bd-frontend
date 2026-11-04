@@ -4,7 +4,6 @@ export const shipping = {
   insideDhaka: 60,
   outsideDhaka: 120,
   intl: 1800,
-  freeThreshold: 5000, // Bangladesh only, compared with the discounted subtotal
   estimate: { dhaka: "1–2 days", other: "3–5 days", intl: "7–14 days" },
 } as const;
 
