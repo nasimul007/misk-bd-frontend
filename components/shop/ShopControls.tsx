@@ -146,18 +146,24 @@ export function ShopControls({ query, sections, bounds, facets, hasSale, childre
 
       <div className={`mt-6 grid items-start gap-5 lg:gap-7 ${railHidden ? "" : "lg:grid-cols-[232px_1fr]"}`}>
       <aside className={`lux-surface flex-col gap-6 p-[22px] lg:sticky lg:top-24 ${filtersOpen ? "flex" : "hidden"} ${railHidden ? "lg:hidden" : "lg:flex"}`} style={{ borderRadius: 18 }} aria-label="Filters">
-        <div>
-          <div style={label}>{sizeOptions.length ? "Price by size" : "Price"}</div>
-          {facets.units.length > 1 && (
-            <div role="group" aria-label="Sold in" className="mb-3 flex flex-wrap gap-1.5">
+        {facets.units.length > 1 && (
+          <div>
+            <div style={label}>Sold in</div>
+            <div role="group" aria-label="Sold in" className="flex flex-wrap gap-1.5">
               {[{ id: "", tab: "All" }, ...facets.units].map((u) => <button key={u.id || "all"} type="button" onClick={() => setUnit(u.id)} aria-pressed={query.unit === u.id} style={{ ...pill(query.unit === u.id), padding: "7px 12px" }}>{u.tab}</button>)}
             </div>
-          )}
-          {sizeOptions.length > 0 && (
-            <div role="group" aria-label="Option for price filter" className={shortLabels ? "mb-3.5 grid grid-cols-3 gap-1.5" : "mb-3.5 flex flex-wrap gap-1.5"}>
+          </div>
+        )}
+        {sizeOptions.length > 0 && (
+          <div>
+            <div style={label}>Size</div>
+            <div role="group" aria-label="Size" className={shortLabels ? "grid grid-cols-3 gap-1.5" : "flex flex-wrap gap-1.5"}>
               {["", ...sizeOptions].map((sz) => <button key={sz || "all"} type="button" onClick={() => setSize(sz)} aria-pressed={query.size === sz} style={{ ...pill(query.size === sz), ...(shortLabels ? {} : { padding: "7px 12px" }) }}>{sz || "All"}</button>)}
             </div>
-          )}
+          </div>
+        )}
+        <div>
+          <div style={label}>{query.size ? `Price for ${query.size}` : "Price"}</div>
           <input
             type="range"
             aria-label={query.size ? `Maximum price for ${query.size}` : "Maximum starting price"}

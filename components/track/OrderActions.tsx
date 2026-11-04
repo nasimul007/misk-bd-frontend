@@ -91,6 +91,7 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
         {order.canCancel && open !== "cancel" && <button type="button" onClick={() => { setOpen("cancel"); setError(""); }} className="lux-btn lux-focus">Cancel order</button>}
         {order.canReturn && open !== "return" && <button type="button" onClick={() => { setOpen("return"); setError(""); }} className="lux-btn lux-focus">Request a return</button>}
       </div>
+      {error && !open && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-warning)" }}>{error}</p>}
       {order.canPayOnline && !open && <p style={note}>Prefer to pay before delivery? Pay by card or mobile banking now. If you change your mind, you can still pay cash when it arrives.</p>}
 
       {open === "cancel" && (
@@ -101,8 +102,10 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
             <button type="button" disabled={busy} onClick={() => settle(cancelOrderAction)} className="lux-btn-fill lux-focus">{busy ? "Cancelling…" : "Yes, cancel my order"}</button>
             <button type="button" disabled={busy} onClick={() => { setOpen(null); setError(""); }} className="lux-btn lux-focus">Keep my order</button>
           </div>
+          {error && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-warning)" }}>{error}</p>}
         </div>
       )}
+
 
       {open === "return" && (
         <div style={{ marginTop: 14 }}>
@@ -112,8 +115,10 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
             <button type="button" disabled={busy} onClick={() => settle(requestReturnAction)} className="lux-btn-fill lux-focus">{busy ? "Sending…" : "Send return request"}</button>
             <button type="button" disabled={busy} onClick={() => { setOpen(null); setError(""); }} className="lux-btn lux-focus">Never mind</button>
           </div>
+          {error && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-warning)" }}>{error}</p>}
         </div>
       )}
+
 
       {order.toReview.length > 0 && (
         <div style={{ marginTop: order.canReturn ? 16 : 0 }}>
@@ -123,7 +128,6 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
       )}
       {order.returnRequested && <p style={{ ...note, marginTop: 0 }}>Return requested. We&apos;ll contact you shortly to arrange it.</p>}
       {order.status === "cancelled" && paid && <p style={{ ...note, marginTop: 0 }}>This order was cancelled. Your online payment will be refunded.</p>}
-      {error && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--lux-warning)" }}>{error}</p>}
     </section>
   );
 }
