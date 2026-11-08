@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { Check, ChevronRight, ShieldCheck } from "lucide-react";
 import { getProduct, getProductSlugs, getRelated, getReviews, getSiteContent } from "@/lib/data";
 import { Badge } from "@/components/ui/Badge";
@@ -12,6 +13,7 @@ import { RecentlyViewed } from "@/components/product/RecentlyViewed";
 import { Reviews, Stars } from "@/components/product/Reviews";
 import { ShareButton } from "@/components/product/ShareButton";
 import { ProductGallery } from "@/components/product/ProductGallery";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export async function generateStaticParams() {
   return (await getProductSlugs()).map((slug) => ({ slug }));
@@ -30,7 +32,33 @@ export async function generateMetadata({ params }: PageProps<"/product/[slug]">)
   };
 }
 
-export default async function ProductPage({ params }: PageProps<"/product/[slug]">) {
+// The slug is URL data, so it's read inside the boundary and the shell around it stays shared.
+export default function ProductPage({ params }: PageProps<"/product/[slug]">) {
+  return (
+    <Suspense fallback={<ProductSkeleton />}>
+      <ProductDetails params={params} />
+    </Suspense>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="alignment" style={{ padding: "12px 24px 60px" }} aria-busy="true">
+      <Skeleton style={{ height: 20, width: 240, margin: "12px 0 24px" }} />
+      <div className="grid gap-10 md:grid-cols-2">
+        <Skeleton style={{ aspectRatio: "1 / 1", borderRadius: 18 }} />
+        <div className="flex flex-col gap-4">
+          <Skeleton style={{ height: 40, width: "70%" }} />
+          <Skeleton style={{ height: 24, width: 160 }} />
+          <Skeleton style={{ height: 120 }} />
+          <Skeleton style={{ height: 52, width: 220 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "params">) {
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) notFound();
