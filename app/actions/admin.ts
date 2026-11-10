@@ -68,8 +68,8 @@ async function transitionOrder(s: Awaited<ReturnType<typeof assertStaff>>, order
       const order = await tx.order.findUniqueOrThrow({ where: { id: locked[0].id }, include: { items: true } });
       if (!NEXT[order.status].includes(to)) return { ok: false, error: `An order that is ${order.status} can't become ${to}.` };
 
-      if (to === "confirmed" && order.paymentMethod === "sslcommerz" && order.paymentStatus !== "paid") {
-        return { ok: false, error: "This order is waiting for its online payment. Confirm it once the payment arrives." };
+      if (to === "confirmed" && (order.paymentStatus === "pending" || order.paymentStatus === "failed")) {
+        return { ok: false, error: order.paymentMethod === "cod" ? "This order is waiting for its delivery charge to be paid online. Confirm it once the payment arrives." : "This order is waiting for its online payment. Confirm it once the payment arrives." };
       }
 
       const now = new Date();

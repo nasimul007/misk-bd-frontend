@@ -80,6 +80,10 @@ Keep the database timezone on UTC (managed hosts do by default). `scripts/db-dev
 
 Card and mobile banking checkout runs through SSLCommerz's hosted page. Bangladeshi shoppers who pick it are sent to the gateway after the order is saved; the order and its stock are held for 30 minutes.
 
+Delivery is ৳100 inside Dhaka and ৳200 elsewhere in Bangladesh (set in `lib/config.ts`); international orders pay a flat ৳1,800 by card.
+
+Cash on Delivery needs the delivery charge paid online first. The order is saved and held for 30 minutes, then placed once SSLCommerz confirms the charge; the rest is collected in cash on delivery. If the charge isn't paid in time, the order is cancelled and its stock released. Because of this, Cash on Delivery is offered only while SSLCommerz is configured. International buyers pay the whole order by card through SSLCommerz. `orders.paidAmount` records what has been paid online.
+
 Set these in `.env` (see `.env.example`). With the store id empty, the method is switched off and checkout refuses it.
 
 | Variable | Notes |

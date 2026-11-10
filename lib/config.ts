@@ -1,8 +1,8 @@
 // Store settings. Owner-editable in the future admin panel; the backend must read these from the
 // database so a price change never needs a code release.
 export const shipping = {
-  insideDhaka: 60,
-  outsideDhaka: 120,
+  insideDhaka: 100,
+  outsideDhaka: 200,
   intl: 1800,
   estimate: { dhaka: "1–2 days", other: "3–5 days", intl: "7–14 days" },
 } as const;
@@ -15,7 +15,7 @@ export type PaymentMethod = { id: PaymentId; label: string; note: string; tag?: 
 export const payments: PaymentMethod[] = [
   { id: "bkash", label: "bKash", note: "Pay with your bKash wallet", tag: "Most popular" },
   { id: "sslcommerz", label: "Card / Mobile Banking", note: "Visa, Mastercard, bKash, Nagad, Rocket via SSLCommerz" },
-  { id: "cod", label: "Cash on Delivery", note: "Pay when your parcel arrives" },
+  { id: "cod", label: "Cash on Delivery", note: "Pay the delivery charge online now, and the rest in cash when your parcel arrives" },
   { id: "stripe", label: "International Card", note: "Visa / Mastercard · 3-D Secure", intl: true },
   { id: "paypal", label: "PayPal", note: "For overseas buyers", intl: true },
 ];
@@ -30,5 +30,5 @@ export function paymentsFor(intl: boolean, live: readonly PaymentId[] = payments
   if (!intl) return ok.filter((p) => !p.intl);
   const world = ok.filter((p) => p.intl);
   if (world.length) return world;
-  return ok.filter((p) => p.id === "sslcommerz").map((p) => ({ ...p, label: "Credit / Debit Card", note: "Visa, Mastercard and other international cards, via SSLCommerz", tag: undefined }));
+  return ok.filter((p) => p.id === "sslcommerz").map((p) => ({ ...p, note: "Visa, Mastercard and other international cards, via SSLCommerz", tag: undefined }));
 }

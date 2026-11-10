@@ -12,8 +12,8 @@ export async function orderGate(phone: string, pay: string, ip: string): Promise
   const fromKnownAddress = ip === "unknown" || (await allow(`limit:order:ip:${ip}`, 20, HOUR));
   if (!fromKnownAddress || !(await allow(`limit:order:phone:${phone}`, 6, HOUR)) || !(await allow(`limit:order:phone-day:${phone}`, 15, DAY))) return SLOW_DOWN;
 
-  if (pay === "sslcommerz") {
-    const waiting = await db.order.count({ where: { contactPhone: phone, paymentMethod: "sslcommerz", status: "pending", paymentStatus: { in: ["pending", "failed"] }, paymentDueAt: { gt: new Date() } } });
+  if (pay === "sslcommerz" || pay === "cod") {
+    const waiting = await db.order.count({ where: { contactPhone: phone, paymentMethod: { in: ["sslcommerz", "cod"] }, status: "pending", paymentStatus: { in: ["pending", "failed"] }, paymentDueAt: { gt: new Date() } } });
     if (waiting >= 2) return "You already have orders waiting for payment. Please pay for them (see Track My Order) or let them expire before placing another.";
   }
   return null;

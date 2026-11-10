@@ -78,7 +78,7 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
     return r;
   });
 
-  const paid = order.payStatus === "paid";
+  const paid = order.paidAmount > 0;
   const again = order.status === "delivered" || order.status === "returned" || order.status === "cancelled";
   const any = again || order.toReview.length > 0 || order.canPayOnline || order.canCancel || order.canReturn || order.returnRequested || (order.status === "cancelled" && paid);
   if (!any) return null;
@@ -87,7 +87,7 @@ export function OrderActions({ order, proof, onUpdate }: { order: Order; proof: 
     <section aria-label="Order options" className="lux-surface" style={{ borderRadius: 18, padding: 22, marginTop: 22 }}>
       <div className="flex flex-wrap items-center gap-3">
         {again && <BuyAgain orderId={order.id} proof={proof} />}
-        {order.canPayOnline && <button type="button" onClick={payOnline} disabled={busy} className="lux-btn-fill lux-focus">{busy && !open ? "Opening payment…" : "Pay online now"}</button>}
+        {order.canPayOnline && <button type="button" onClick={payOnline} disabled={busy} className="lux-btn-fill lux-focus">{busy && !open ? "Opening payment…" : paid ? "Pay the rest online now" : "Pay online now"}</button>}
         {order.canCancel && open !== "cancel" && <button type="button" onClick={() => { setOpen("cancel"); setError(""); }} className="lux-btn lux-focus">Cancel order</button>}
         {order.canReturn && open !== "return" && <button type="button" onClick={() => { setOpen("return"); setError(""); }} className="lux-btn lux-focus">Request a return</button>}
       </div>

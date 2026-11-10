@@ -132,13 +132,15 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
       return { ok: false, code: "price_changed", message: "Some prices changed while you were shopping. Please review your bag.", fresh };
     }
 
+    // Both methods are paid through SSLCommerz before the order counts as placed: the whole total for card and
+    // mobile banking, just the delivery charge for Cash on Delivery. The rest of a COD order is cash on delivery.
     const cod = f.pay === "cod";
     const order = await tx.order.create({
       data: {
         guestTokenHash: hash(token),
         customerId: customerId ?? null,
         paymentMethod: f.pay as "bkash",
-        paymentStatus: cod ? "cod_pending" : "pending",
+        paymentStatus: "pending",
         subtotalList: t.listTotal,
         discountTotal: t.savings,
         subtotal: t.subtotal,
@@ -174,7 +176,7 @@ export async function placeOrder(input: PlaceOrderInput, customerId?: string): P
           })),
         },
         history: { create: { status: "pending", note: "Order placed" } },
-        payments: { create: { method: f.pay as "bkash", status: "pending", amount: t.total } },
+        payments: { create: { method: f.pay as "bkash", status: "pending", amount: cod ? t.total - t.shipping : t.total } },
       },
     });
 
@@ -234,6 +236,7 @@ function toOrder(o: OrderRow, policy: OrderPolicy): Order {
     pay: o.paymentMethod,
     timeline: o.history.map((h) => ({ status: h.status, at: h.createdAt.toISOString() })),
     payStatus: o.paymentStatus,
+    paidAmount: o.paidAmount,
     payDueAt: o.paymentDueAt ? o.paymentDueAt.toISOString() : null,
     status: o.status,
     intl,
@@ -390,9 +393,9 @@ export async function cancelOrder(no: string, proof: Proof, customerId: string |
     await restockLines(tx, o.items, o.number, `Order ${orderNo(o.number)} cancelled by the customer`, { username: "customer" });
     if (o.confirmedAt) for (const i of o.items) if (i.productId) await tx.product.update({ where: { id: i.productId }, data: { soldCount: { decrement: i.qty } } });
     await tx.payment.updateMany({ where: { orderId: o.id, status: "pending" }, data: { status: "failed" } });
-    const paid = o.paymentStatus === "paid";
-    await tx.order.update({ where: { id: o.id }, data: { status: "cancelled", cancelledAt: new Date(), paymentDueAt: null, ...(paid || o.paymentMethod === "cod" ? {} : { paymentStatus: "failed" }) } });
-    await tx.orderStatusHistory.create({ data: { orderId: o.id, status: "cancelled", note: `Cancelled by the customer${reason ? `: ${reason}` : ""}${paid ? ". Paid online, so a refund is due." : ""}` } });
+    const paid = o.paidAmount > 0;
+    await tx.order.update({ where: { id: o.id }, data: { status: "cancelled", cancelledAt: new Date(), paymentDueAt: null, ...(o.paymentStatus === "paid" || o.paymentStatus === "cod_pending" ? {} : { paymentStatus: "failed" }) } });
+    await tx.orderStatusHistory.create({ data: { orderId: o.id, status: "cancelled", note: `Cancelled by the customer${reason ? `: ${reason}` : ""}${paid ? `. Paid online (${o.paidAmount} BDT), so a refund is due.` : ""}` } });
     return { ok: true };
   });
   return done.ok ? { ok: true, order: await reload(a.row.id) } : done;

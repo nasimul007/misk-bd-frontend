@@ -13,6 +13,7 @@ export type Order = {
   pay: PaymentId;
   timeline: { status: string; at: string }[]; // when each status was reached (staff notes are never included)
   payStatus: string; // unpaid | pending | paid | failed | refunded | cod_pending | cod_collected
+  paidAmount: number; // already paid online: all of it, or just the delivery charge on a Cash on Delivery order
   payDueAt: string | null; // ISO; an online order not paid by then is cancelled
   status: string;
   intl: boolean;
@@ -72,3 +73,13 @@ export const orderTokens = {
     }
   },
 };
+
+/** Still waiting for money online: a card order not yet paid, or a Cash on Delivery order whose delivery charge isn't paid. */
+export const awaitingPayment = (o: Pick<Order, "status" | "payStatus">) => o.status === "pending" && (o.payStatus === "pending" || o.payStatus === "failed");
+
+/** What the customer pays online right now: the whole total, or only the delivery charge on a Cash on Delivery order. */
+export const payNowAmount = (o: Pick<Order, "pay" | "totals">) => (o.pay === "cod" ? o.totals.shipping : o.totals.total);
+
+/** Cash still to hand over on delivery (Cash on Delivery orders only). */
+export const cashOnDelivery = (o: Pick<Order, "pay" | "totals" | "paidAmount" | "payStatus" | "status">) =>
+  o.pay === "cod" ? o.totals.total - (awaitingPayment(o) ? o.totals.shipping : o.paidAmount) : 0;

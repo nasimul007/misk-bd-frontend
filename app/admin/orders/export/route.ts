@@ -24,14 +24,14 @@ export async function GET(request: Request) {
   const filter = parseOrderFilter(sp);
   const orders = await db.order.findMany({ where: orderWhere(filter), include: { items: true }, orderBy: { createdAt: "desc" }, take: 5000 });
 
-  const header = ["Order", "Placed (Dhaka)", "Status", "Customer", "Phone", "Email", "Division", "District", "Upazila / city", "Address", "Items", "Subtotal", "Discount", "Shipping", "Total (BDT)", "Payment method", "Payment status", "Delivery note", "Contactless"];
+  const header = ["Order", "Placed (Dhaka)", "Status", "Customer", "Phone", "Email", "Division", "District", "Upazila / city", "Address", "Items", "Subtotal", "Discount", "Shipping", "Total (BDT)", "Payment method", "Payment status", "Paid online (BDT)", "Delivery note", "Contactless"];
   const when = (d: Date) => d.toLocaleString("en-GB", { timeZone: "Asia/Dhaka", hour12: false });
   const lines = orders.map((o) =>
     [
       orderNo(o.number), when(o.createdAt), o.status, o.contactName, o.contactPhone, o.contactEmail,
       o.shipKind === "intl" ? o.shipCountry : o.shipDivision, o.shipKind === "intl" ? o.shipRegion : o.shipDistrict, o.shipKind === "intl" ? o.shipCity : o.shipUpazila, o.shipStreet,
       o.items.map((i) => `${i.title} (${i.size}) x${i.qty}`).join("; "),
-      o.subtotal, o.discountTotal, o.shippingFee, o.total, o.paymentMethod, o.paymentStatus, o.deliveryNote, o.contactless ? "yes" : "",
+      o.subtotal, o.discountTotal, o.shippingFee, o.total, o.paymentMethod, o.paymentStatus, o.paidAmount, o.deliveryNote, o.contactless ? "yes" : "",
     ].map(cell).join(","),
   );
   await audit(staff, "orders.export", "order", `${orders.length} rows`);

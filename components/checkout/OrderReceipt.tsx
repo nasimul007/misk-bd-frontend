@@ -12,7 +12,7 @@ import { lookupOrdersAction, retryPaymentAction } from "@/app/actions/orders";
 import { useSession } from "@/lib/auth";
 import { OrderActions } from "@/components/track/OrderActions";
 import { OrderProgress } from "@/components/track/OrderProgress";
-import { orderTokens, type Order } from "@/lib/orders";
+import { awaitingPayment, cashOnDelivery, orderTokens, payNowAmount, type Order } from "@/lib/orders";
 
 /** `undefined` while loading, `null` when this browser can't prove the order is its own. */
 function useOrder(id: string): Order | null | undefined {
@@ -34,6 +34,8 @@ function useOrder(id: string): Order | null | undefined {
 
 /** An online order that hasn't been paid yet, or whose payment didn't go through. */
 function PayPrompt({ order }: { order: Order }) {
+  const money = useMoney();
+  const cod = order.pay === "cod";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const failed = order.payStatus === "failed";
@@ -53,11 +55,12 @@ function PayPrompt({ order }: { order: Order }) {
   const due = order.payDueAt ? new Date(order.payDueAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dhaka" }) : "";
   return (
     <div className="lux-surface lux-glass--gold" style={{ borderRadius: 18, padding: 22, marginBottom: 22, textAlign: "center" }}>
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>{failed ? "Your payment didn't go through" : "Your payment is not complete yet"}</div>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{failed ? "Your payment didn't go through" : cod ? "Pay the delivery charge to place your order" : "Your payment is not complete yet"}</div>
       <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--lux-ink-muted)" }}>
+        {cod ? `Cash on Delivery orders start with the ${money(order.totals.shipping)} delivery charge, paid online. The remaining ${money(cashOnDelivery(order))} is paid in cash when it arrives. ` : ""}
         {due ? `We're holding your order until ${due} (Dhaka time). ` : ""}After that it is cancelled and the items go back on the shelf.
       </p>
-      <button type="button" onClick={pay} disabled={busy} className="lux-btn-fill lux-focus">{busy ? "Opening payment…" : failed ? "Try payment again" : "Pay now"}</button>
+      <button type="button" onClick={pay} disabled={busy} className="lux-btn-fill lux-focus">{busy ? "Opening payment…" : failed ? "Try payment again" : cod ? `Pay delivery charge ${money(payNowAmount(order))}` : "Pay now"}</button>
       {error && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13, color: "var(--lux-warning)" }}>{error}</p>}
     </div>
   );
@@ -83,9 +86,11 @@ export function OrderReceipt({ id }: { id: string }) {
   }
 
   const online = order.pay === "sslcommerz";
-  const unpaid = online && order.status === "pending" && order.payStatus !== "paid";
-  const lapsed = online && order.status === "cancelled" && order.payStatus !== "paid";
-  const payLabel = (payments.find((p) => p.id === order.pay)?.label ?? order.pay) + (online ? (order.payStatus === "paid" ? " · Paid" : " · Awaiting payment") : "");
+  const cod = order.pay === "cod";
+  const unpaid = awaitingPayment(order);
+  const lapsed = order.status === "cancelled" && order.payStatus === "failed";
+  const payLabel = (payments.find((p) => p.id === order.pay)?.label ?? order.pay) + (unpaid ? " · Awaiting payment" : online && order.payStatus === "paid" ? " · Paid" : cod && order.paidAmount > 0 ? " · Delivery charge paid" : "");
+  const cash = cashOnDelivery(order);
   const t = order.totals;
   const facts: [string, string][] = [["Order", order.id], ["Payment", payLabel], ["Ship to", order.division], ["Est. delivery", estimateFor(order.intl, order.division)]];
 
@@ -98,7 +103,7 @@ export function OrderReceipt({ id }: { id: string }) {
     : order.status === "delivered" ? "Your order was delivered"
     : order.status === "shipped" ? "Your order is on its way"
     : order.status === "confirmed" || order.status === "packed" ? "Your order is confirmed"
-    : online ? "Thank you — payment received" : "Thank you — order received";
+    : online || (cod && order.paidAmount > 0) ? "Thank you — payment received" : "Thank you — order received";
   const statusLine = waiting ? <>We&apos;ll confirm it by phone{order.email ? " and email" : ""} shortly.</>
     : order.status === "confirmed" ? "We're getting it ready."
     : order.status === "packed" ? "It's packed and will be handed to the courier soon."
@@ -114,7 +119,7 @@ export function OrderReceipt({ id }: { id: string }) {
         <h1 className="font-display" style={{ fontSize: 32, fontWeight: 500, margin: "0 0 8px" }}>{headline}</h1>
         <p style={{ color: "var(--lux-ink-muted)" }}>
           {lapsed
-            ? <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong> was cancelled because the payment wasn&apos;t received in time. You can place it again from the shop.</>
+            ? <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong> was cancelled because {cod ? "the delivery charge" : "the payment"} wasn&apos;t received in time. You can place it again from the shop.</>
             : <>Order <strong style={{ color: "var(--lux-gold)" }}>{order.id}</strong>. {unpaid ? "It's saved, and waiting for your payment." : statusLine}</>}
         </p>
       </div>
@@ -150,9 +155,15 @@ export function OrderReceipt({ id }: { id: string }) {
           <div className="flex justify-between" style={{ padding: "3px 0" }}><span>VAT (incl.)</span><span>{money(t.vat)}</span></div>
         </div>
         <div className="flex items-baseline justify-between" style={{ borderTop: "1px solid var(--lux-line)", marginTop: 12, paddingTop: 16 }}>
-          <span style={{ fontWeight: 500 }}>{order.pay === "cod" ? "Total due on delivery" : unpaid ? "Total to pay" : "Total"}</span>
+          <span style={{ fontWeight: 500 }}>{cod && order.paidAmount === 0 && !unpaid ? "Total due on delivery" : unpaid && !cod ? "Total to pay" : "Total"}</span>
           <span className="font-display" style={{ fontSize: 24, color: "var(--lux-gold)" }}>{money(t.total)}</span>
         </div>
+        {cod && (unpaid || order.paidAmount > 0) && (
+          <div style={{ marginTop: 10, fontSize: 14, color: "var(--lux-ink-muted)" }}>
+            <div className="flex justify-between" style={{ padding: "3px 0" }}><span>{unpaid ? "To pay online now (delivery charge)" : "Paid online (delivery charge)"}</span><span>{money(unpaid ? payNowAmount(order) : order.paidAmount)}</span></div>
+            <div className="flex justify-between" style={{ padding: "3px 0", color: "var(--lux-ink)", fontWeight: 500 }}><span>Cash due on delivery</span><span>{money(cash)}</span></div>
+          </div>
+        )}
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
       </div>
 

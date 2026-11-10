@@ -13,9 +13,10 @@ export const sslEnabled = () => sslConfig() !== null;
 type Start = { ok: true; url: string } | { ok: false; reason: string };
 
 /**
- * Opens a fresh SSLCommerz payment attempt for an order that is still waiting for money. An online order is
- * held for a short while. A Cash on Delivery order can also be paid this way before it arrives: it stays
- * Cash on Delivery, with no hold and no expiry, until a payment is actually confirmed.
+ * Opens a fresh SSLCommerz payment attempt for an order that still owes money online. What is owed depends on the order:
+ * an online order owes its whole total; a Cash on Delivery order owes its delivery charge before it counts as placed
+ * (both are held for a short while, then released); and a Cash on Delivery order that is already placed can still be paid
+ * in full before it arrives, which settles whatever is left.
  */
 export async function startSslcommerz(orderNumber: number): Promise<Start> {
   const cfg = sslConfig();
@@ -23,25 +24,28 @@ export async function startSslcommerz(orderNumber: number): Promise<Start> {
 
   const order = await db.order.findUnique({ where: { number: orderNumber }, include: { items: true, payments: true } });
   if (!order || (order.paymentMethod !== "sslcommerz" && order.paymentMethod !== "cod")) return { ok: false, reason: "That order can't be paid online." };
-  const fromCod = order.paymentMethod === "cod";
-  if (fromCod ? !["pending", "confirmed", "packed", "shipped"].includes(order.status) || order.paymentStatus !== "cod_pending"
-              : order.status !== "pending" || order.paymentStatus === "paid") return { ok: false, reason: "This order doesn't need a payment." };
+  const cod = order.paymentMethod === "cod";
+  const waiting = order.status === "pending" && (order.paymentStatus === "pending" || order.paymentStatus === "failed");
+  const early = cod && order.paymentStatus === "cod_pending" && ["pending", "confirmed", "packed", "shipped"].includes(order.status);
+  if (!waiting && !early) return { ok: false, reason: "This order doesn't need a payment." };
+  const owed = !waiting ? order.total - order.paidAmount : cod ? order.shippingFee : order.total;
+  if (owed <= 0) return { ok: false, reason: "This order doesn't need a payment." };
 
   // Every attempt gets its own transaction id, so a retry never collides with an earlier try.
   const tranId = `${orderNo(order.number)}-${order.payments.filter((p) => p.providerRef).length + 1}`;
-  const open = fromCod ? undefined : order.payments.find((p) => !p.providerRef && p.status === "pending");
+  const open = waiting ? order.payments.find((p) => !p.providerRef && p.status === "pending" && p.method === "sslcommerz" && p.amount === owed) : undefined;
   const payment = await db.$transaction(async (tx) => {
-    if (!fromCod) await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "pending", paymentDueAt: holdUntil() } });
+    if (waiting) await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "pending", paymentDueAt: holdUntil() } });
     return open
       ? tx.payment.update({ where: { id: open.id }, data: { providerRef: tranId } })
-      : tx.payment.create({ data: { orderId: order.id, method: "sslcommerz", status: "pending", amount: order.total, providerRef: tranId } });
+      : tx.payment.create({ data: { orderId: order.id, method: "sslcommerz", status: "pending", amount: owed, providerRef: tranId } });
   });
 
   const intl = order.shipKind === "intl";
   const first = order.items[0]?.title ?? "MISK BD order";
   const r = await createSession(cfg, {
     tranId,
-    amount: order.total,
+    amount: owed,
     orderNo: orderNo(order.number),
     productName: order.items.length > 1 ? `${first} and ${order.items.length - 1} more` : first,
     itemCount: order.items.reduce((n, i) => n + i.qty, 0),
@@ -55,7 +59,7 @@ export async function startSslcommerz(orderNumber: number): Promise<Start> {
   });
   if (!r.ok) {
     await db.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { reason: r.reason } } });
-    if (!fromCod) await db.order.update({ where: { id: order.id }, data: { paymentStatus: "failed" } });
+    if (waiting) await db.order.update({ where: { id: order.id }, data: { paymentStatus: "failed" } });
   }
   return r;
 }
@@ -84,24 +88,28 @@ export async function settleSslcommerz(valId: string, tranIdHint: string): Promi
     if (current.status === "paid") return { orderNo: no, paid: true };
 
     if (v.status !== "VALID" && v.status !== "VALIDATED") return { orderNo: no, paid: false };
-    if (v.currency !== "BDT" || v.amount !== order.total) {
+    // What we asked this attempt to collect: the whole total, or only the delivery charge of a Cash on Delivery order.
+    if (v.currency !== "BDT" || v.amount !== current.amount) {
       // Money arrived but not the right amount: never mark it paid on our own say-so.
-      console.error("sslcommerz amount mismatch", { order: no, expected: order.total, got: v.amount, currency: v.currency });
+      console.error("sslcommerz amount mismatch", { order: no, expected: current.amount, got: v.amount, currency: v.currency });
       await tx.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { ...v.raw, problem: "amount_mismatch" } } });
-      await tx.orderStatusHistory.create({ data: { orderId: order.id, status: order.status, note: `Payment of ${v.amount} ${v.currency} did not match the order total. Check the SSLCommerz panel.` } });
+      await tx.orderStatusHistory.create({ data: { orderId: order.id, status: order.status, note: `Payment of ${v.amount} ${v.currency} did not match the amount requested. Check the SSLCommerz panel.` } });
       return { orderNo: no, paid: false };
     }
 
-    const notes = [`Paid online (SSLCommerz${v.cardType ? `, ${v.cardType}` : ""}${v.bankTranId ? `, ref ${v.bankTranId}` : ""})`];
+    const paidAmount = Math.min(order.total, order.paidAmount + current.amount);
+    const whole = paidAmount >= order.total;
+    const wasCod = order.paymentMethod === "cod";
+    const how = `SSLCommerz${v.cardType ? `, ${v.cardType}` : ""}${v.bankTranId ? `, ref ${v.bankTranId}` : ""}`;
+    const notes = [whole
+      ? `Paid online (${how})${wasCod ? ". It was Cash on Delivery, so nothing is due on delivery" : ""}`
+      : `Delivery charge of ${current.amount} BDT paid online (${how}). Collect the remaining ${order.total - paidAmount} BDT on delivery`];
     if (v.riskLevel === "1") notes.push("The gateway flagged this payment as risky. Check it in the SSLCommerz panel before shipping.");
     if (order.status === "cancelled") notes.push("This order was already cancelled, so its stock was released. Reinstate it or refund the customer.");
-    const wasCod = order.paymentMethod === "cod";
-    if (wasCod) {
-      notes[0] = notes[0].replace("Paid online", "Paid online before delivery (was Cash on Delivery)");
-      await tx.payment.updateMany({ where: { orderId: order.id, method: "cod", status: "pending" }, data: { status: "failed", raw: { superseded: "paid online" } } });
-    }
+    // Paying a Cash on Delivery order in full replaces the cash part; paying only its delivery charge keeps it Cash on Delivery.
+    if (wasCod && whole) await tx.payment.updateMany({ where: { orderId: order.id, method: "cod", status: "pending" }, data: { status: "failed", raw: { superseded: "paid online" } } });
     await tx.payment.update({ where: { id: payment.id }, data: { status: "paid", raw: v.raw } });
-    await tx.order.update({ where: { id: order.id }, data: { paymentStatus: "paid", paymentDueAt: null, ...(wasCod ? { paymentMethod: "sslcommerz" as const } : {}) } });
+    await tx.order.update({ where: { id: order.id }, data: { paidAmount, paymentDueAt: null, paymentStatus: whole ? "paid" : "cod_pending", ...(wasCod && whole ? { paymentMethod: "sslcommerz" as const } : {}) } });
     await tx.orderStatusHistory.create({ data: { orderId: order.id, status: order.status, note: notes.join(". ") } });
     return { orderNo: no, paid: true };
   });
@@ -111,21 +119,22 @@ export async function settleSslcommerz(valId: string, tranIdHint: string): Promi
 export async function failSslcommerz(tranId: string, kind: "failed" | "cancelled"): Promise<string | null> {
   const payment = await db.payment.findUnique({ where: { method_providerRef: { method: "sslcommerz", providerRef: tranId } }, include: { order: true } });
   if (!payment) return null;
-  if (payment.status === "pending" && payment.order.paymentStatus !== "paid") {
+  if (payment.status === "pending") {
     await db.payment.update({ where: { id: payment.id }, data: { status: "failed", raw: { reason: kind } } });
-    // A Cash on Delivery order whose online attempt failed is still a perfectly good COD order.
-    if (payment.order.paymentMethod !== "cod") await db.order.update({ where: { id: payment.orderId }, data: { paymentStatus: "failed" } });
+    // Only an order still waiting for its money is marked failed. A Cash on Delivery order whose optional
+    // "pay it all now" attempt failed is still a perfectly good COD order.
+    if (payment.order.paymentStatus === "pending") await db.order.update({ where: { id: payment.orderId }, data: { paymentStatus: "failed" } });
   }
   return orderNo(payment.order.number);
 }
 
 /**
- * Cancels online orders whose hold ran out without a payment and puts their stock back.
+ * Cancels orders (online, or Cash on Delivery awaiting its delivery charge) whose hold ran out without a payment and puts their stock back.
  * Safe to run often and from several places at once.
  */
 export async function expireUnpaid(limit = 50): Promise<number> {
   const due = await db.order.findMany({
-    where: { status: "pending", paymentMethod: "sslcommerz", paymentStatus: { in: ["pending", "failed"] }, paymentDueAt: { lt: new Date() } },
+    where: { status: "pending", paymentMethod: { in: ["sslcommerz", "cod"] }, paymentStatus: { in: ["pending", "failed"] }, paymentDueAt: { lt: new Date() } },
     select: { id: true },
     take: limit,
   });
@@ -139,7 +148,7 @@ export async function expireUnpaid(limit = 50): Promise<number> {
       await restockLines(tx, o.items, o.number, `Order ${orderNo(o.number)} cancelled: payment not received`, { username: "system" });
       await tx.payment.updateMany({ where: { orderId: id, status: "pending" }, data: { status: "failed" } });
       await tx.order.update({ where: { id }, data: { status: "cancelled", cancelledAt: new Date(), paymentStatus: "failed", paymentDueAt: null } });
-      await tx.orderStatusHistory.create({ data: { orderId: id, status: "cancelled", note: "Payment was not received in time" } });
+      await tx.orderStatusHistory.create({ data: { orderId: id, status: "cancelled", note: o.paymentMethod === "cod" ? "The delivery charge was not paid in time" : "Payment was not received in time" } });
       return true;
     });
     if (ok) done++;

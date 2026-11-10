@@ -322,6 +322,7 @@ model Order {
   etaText        String               @default("") @db.VarChar(40)
   deliveryNote   String?              @db.VarChar(300) // what the customer asked the rider to know
   contactless    Boolean              @default(false) // leave at the door / no hand-over
+  paidAmount     Int                  @default(0) // taken online so far: the whole total, or just the delivery charge on a Cash on Delivery order
   paymentDueAt   DateTime?            @db.Timestamptz // online payment must land by then, or the order is cancelled and stock released
   items          OrderItem[]
   history        OrderStatusHistory[]

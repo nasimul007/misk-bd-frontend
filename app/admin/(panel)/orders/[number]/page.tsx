@@ -25,6 +25,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
   const staff = staffIds.length ? await db.staffAccount.findMany({ where: { id: { in: staffIds } }, select: { id: true, username: true } }) : [];
   const who = (id: string | null) => (id ? (staff.find((s) => s.id === id)?.username ?? "staff") : "system");
 
+  const awaitingFee = o.paymentStatus === "pending" || o.paymentStatus === "failed"; // a Cash on Delivery order whose delivery charge isn't in yet
   const intl = o.shipKind === "intl";
   const address = intl
     ? [o.shipStreet, o.shipCity, o.shipRegion, o.shipPostal, o.shipCountry].filter(Boolean).join(", ")
@@ -99,9 +100,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[nu
           <Panel title="Payment">
             {row("Method", o.paymentMethod)}
             {row("Status", o.paymentStatus.replace("_", " "))}
-            {(o.status === "cancelled" || o.status === "returned") && o.paymentStatus === "paid" && (
+            {o.paidAmount > 0 && row("Paid online", money(o.paidAmount))}
+            {o.paymentMethod === "cod" && o.paymentStatus !== "cod_collected" && row("Cash on delivery", money(o.total - (o.paidAmount > 0 ? o.paidAmount : awaitingFee ? o.shippingFee : 0)))}
+            {(o.status === "cancelled" || o.status === "returned") && o.paidAmount > 0 && (
               <div style={{ margin: "6px 0", padding: "10px 12px", borderRadius: 10, border: "1px solid color-mix(in oklch, var(--lux-warning) 40%, transparent)", background: "color-mix(in oklch, var(--lux-warning) 10%, transparent)", fontSize: 13.5, lineHeight: 1.5 }}>
-                <strong>Refund due.</strong> This order was paid online but is {o.status}. Refund it from the SSLCommerz merchant panel.
+                <strong>Refund due.</strong> {money(o.paidAmount)} was paid online and the order is {o.status}. Refund it from the SSLCommerz merchant panel.
               </div>
             )}
             {row("Placed", dateTime(o.createdAt))}

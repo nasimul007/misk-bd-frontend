@@ -14,8 +14,8 @@ export async function placeOrderAction(raw: unknown): Promise<PlaceOrderResult> 
   const input = parseInput(raw);
   if (!input) return { ok: false, code: "invalid", message: "That order could not be read. Please refresh and try again." };
   try {
-    if (input.form.pay === "sslcommerz" && !sslEnabled()) {
-      return { ok: false, code: "invalid", message: "Card and mobile banking payment isn't available right now. Please choose another method." };
+    if ((input.form.pay === "sslcommerz" || input.form.pay === "cod") && !sslEnabled()) {
+      return { ok: false, code: "invalid", message: "Online payment isn't available right now, so we can't take orders at the moment. Please try again later." };
     }
     const refused = await orderGate(phoneFor(input.form), input.form.pay, await callerIp());
     if (refused) return { ok: false, code: "invalid", message: refused };
@@ -24,7 +24,7 @@ export async function placeOrderAction(raw: unknown): Promise<PlaceOrderResult> 
     // Free the stock held by abandoned online orders before this buyer is told something is sold out.
     await expireUnpaid().catch((e) => console.error("expireUnpaid failed", e));
     const res = await placeOrder(input, user?.id);
-    if (!res.ok || input.form.pay !== "sslcommerz") return res;
+    if (!res.ok || (input.form.pay !== "sslcommerz" && input.form.pay !== "cod")) return res;
 
     // The order exists and its stock is held. If the gateway can't open a page, the shopper can retry
     // from the order page instead of losing the order.

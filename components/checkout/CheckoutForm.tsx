@@ -233,7 +233,9 @@ export function CheckoutForm({ live }: { live: PaymentId[] }) {
           <p style={{ margin: "14px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)" }}>
             {f.pay === "sslcommerz"
               ? "You'll be taken to SSLCommerz's secure page to pay. We hold your order and stock for 30 minutes while you do."
-              : "This payment method is simulated for now — no money is taken and nothing is sent to a payment provider."}
+              : f.pay === "cod"
+                ? "Your order is placed once the delivery charge is paid on SSLCommerz's secure page. We hold your order and stock for 30 minutes while you do. The rest is paid in cash on delivery."
+                : "This payment method is simulated for now — no money is taken and nothing is sent to a payment provider."}
           </p>
         </section>
       </div>
@@ -262,9 +264,15 @@ export function CheckoutForm({ live }: { live: PaymentId[] }) {
           <span style={{ fontWeight: 500 }}>Total</span>
           <span className="font-display" style={{ fontSize: 24, color: "var(--lux-gold)" }}>{money(t.total)}</span>
         </div>
+        {f.pay === "cod" && (f.division || f.intl) && (
+          <div style={{ marginTop: 10, fontSize: 14, color: "var(--lux-ink-muted)" }}>
+            <div className="flex justify-between" style={{ padding: "3px 0" }}><span>Pay online now (delivery charge)</span><span>{money(t.shipping)}</span></div>
+            <div className="flex justify-between" style={{ padding: "3px 0", color: "var(--lux-ink)", fontWeight: 500 }}><span>Cash on delivery</span><span>{money(t.total - t.shipping)}</span></div>
+          </div>
+        )}
         {currency === "USD" && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--lux-ink-muted)", textAlign: "right" }}>Shown in USD for reference. You are charged {bdt(t.total)}.</p>}
         {t.savings > 0 && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--lux-success)", textAlign: "right" }}>You save {money(t.savings)} on this order</p>}
-        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : f.pay === "sslcommerz" ? "Continue to payment" : "Place Order"}</button>
+        <button type="submit" disabled={placing} className="lux-btn-fill lux-focus" style={{ width: "100%", padding: "0.95rem", marginTop: 18 }}>{placing ? "Placing order…" : f.pay === "sslcommerz" ? "Continue to payment" : f.pay === "cod" ? "Pay delivery charge & place order" : "Place Order"}</button>
         {notice && <p role="alert" style={{ margin: "10px 0 0", fontSize: 13, color: "var(--lux-warning)", textAlign: "center" }}>{notice}</p>}
         {touched && !ok && <p role="alert" style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--lux-warning)", textAlign: "center" }}>Please fix the highlighted fields.</p>}
         <p className="flex items-center justify-center gap-1.5" style={{ fontSize: 12, color: "var(--lux-ink-muted)", textAlign: "center", marginTop: 12 }}><Lock size={12} /> Secure checkout</p>
